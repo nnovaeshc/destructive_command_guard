@@ -320,13 +320,20 @@ pub fn detect_protocol(input: &HookInput) -> HookProtocol {
         .as_deref()
         .map(str::to_ascii_lowercase)
         .unwrap_or_default();
+    let hook_event_name = input.hook_event_name.as_deref().unwrap_or_default();
     let has_gemini_context = input.session_id.is_some()
         || input.transcript_path.is_some()
         || input.cwd.is_some()
         || input.timestamp.is_some();
+    let has_gemini_before_tool_marker = hook_event_name.eq_ignore_ascii_case("beforetool")
+        && matches!(
+            tool_name.as_str(),
+            "run_shell_command" | "run-shell-command"
+        );
 
-    // Gemini hooks include session-level envelope fields in every payload.
-    if has_gemini_context {
+    // Gemini hooks usually include session envelope fields, but some integrations
+    // only provide the event marker + tool payload.
+    if has_gemini_context || has_gemini_before_tool_marker {
         HookProtocol::Gemini
     } else if input.event.is_some()
         || input.tool_args.is_some()
@@ -1089,6 +1096,18 @@ mod tests {
         let input: HookInput = serde_json::from_str(json).unwrap();
         assert_eq!(extract_command(&input), Some("git status".to_string()));
         assert_eq!(detect_protocol(&input), HookProtocol::ClaudeCompatible);
+    }
+
+    #[test]
+    fn test_gemini_before_tool_marker_detects_gemini_without_session_fields() {
+        let json = r#"{
+            "hook_event_name":"BeforeTool",
+            "tool_name":"run_shell_command",
+            "tool_input":{"command":"git status"}
+        }"#;
+        let input: HookInput = serde_json::from_str(json).unwrap();
+        assert_eq!(extract_command(&input), Some("git status".to_string()));
+        assert_eq!(detect_protocol(&input), HookProtocol::Gemini);
     }
 
     #[test]

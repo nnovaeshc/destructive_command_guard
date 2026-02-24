@@ -1238,13 +1238,11 @@ pub fn normalize_command_word_token(token: &str) -> Option<String> {
                     }
                     inner_str.push(inner);
                 }
-                if found_close {
-                    result.push_str(&inner_str);
-                } else {
+                if !found_close {
                     // Unclosed quote - put quote back and keep the rest as is
                     result.push(quote);
-                    result.push_str(&inner_str);
                 }
+                result.push_str(&inner_str);
             } else {
                 result.push(c);
             }

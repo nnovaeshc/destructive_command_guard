@@ -4,6 +4,7 @@
 //! by querying the GitHub Releases API. Results are cached to avoid API spam.
 
 use std::fs;
+use std::path::Path;
 use std::path::PathBuf;
 use std::thread;
 use std::time::{Duration, SystemTime};
@@ -29,7 +30,7 @@ pub struct VersionCheckResult {
     pub latest_version: String,
     /// Whether an update is available.
     pub update_available: bool,
-    /// URL to the latest release.
+    /// URL to the release corresponding to `latest_version`.
     pub release_url: String,
     /// Release notes/body (first 500 chars).
     pub release_notes: Option<String>,
@@ -95,6 +96,9 @@ pub struct BackupEntry {
     pub version: String,
     /// Unix timestamp when the backup was created.
     pub created_at: u64,
+    /// Actual backup artifact basename (without `.json`) if non-legacy naming was used.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artifact_name: Option<String>,
     /// Original path where dcg was installed.
     pub original_path: PathBuf,
 }
@@ -103,6 +107,45 @@ pub struct BackupEntry {
 #[must_use]
 pub fn backup_dir() -> Option<PathBuf> {
     dirs::data_dir().map(|d| d.join("dcg").join("backups"))
+}
+
+fn backup_artifact_name(entry: &BackupEntry) -> String {
+    entry
+        .artifact_name
+        .clone()
+        .unwrap_or_else(|| format!("dcg-{}-{}", entry.version, entry.created_at))
+}
+
+fn generate_unique_backup_name(dir: &Path, version: &str, timestamp: u64) -> String {
+    let base = format!("dcg-{version}-{timestamp}");
+    let base_path = dir.join(&base);
+    let base_metadata_path = dir.join(format!("{base}.json"));
+
+    if !base_path.exists() && !base_metadata_path.exists() {
+        return base;
+    }
+
+    let nanos_suffix = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .map_or(0, |duration| duration.subsec_nanos());
+    let fallback = format!("{base}-{nanos_suffix:09}");
+    let fallback_path = dir.join(&fallback);
+    let fallback_metadata_path = dir.join(format!("{fallback}.json"));
+    if !fallback_path.exists() && !fallback_metadata_path.exists() {
+        return fallback;
+    }
+
+    for counter in 1..=u32::MAX {
+        let candidate = format!("{base}-{nanos_suffix:09}-{counter}");
+        let candidate_path = dir.join(&candidate);
+        let candidate_metadata_path = dir.join(format!("{candidate}.json"));
+        if !candidate_path.exists() && !candidate_metadata_path.exists() {
+            return candidate;
+        }
+    }
+
+    // Practically unreachable, but keep behavior deterministic.
+    format!("{base}-{nanos_suffix:09}-overflow")
 }
 
 /// List all available backup versions, sorted by creation time (newest first).
@@ -172,7 +215,7 @@ pub fn create_backup() -> Result<PathBuf, VersionCheckError> {
         .map_err(|e| VersionCheckError::BackupError(format!("Failed to get timestamp: {e}")))?
         .as_secs();
 
-    let backup_name = format!("dcg-{version}-{timestamp}");
+    let backup_name = generate_unique_backup_name(&dir, version, timestamp);
     let backup_path = dir.join(&backup_name);
     let metadata_path = dir.join(format!("{backup_name}.json"));
 
@@ -185,6 +228,7 @@ pub fn create_backup() -> Result<PathBuf, VersionCheckError> {
     let entry = BackupEntry {
         version: version.to_string(),
         created_at: timestamp,
+        artifact_name: Some(backup_name.clone()),
         original_path: current_exe,
     };
 
@@ -216,7 +260,7 @@ fn prune_old_backups() -> Result<(), VersionCheckError> {
 
     // Remove oldest backups (they're already sorted newest first)
     for backup in backups.into_iter().skip(MAX_BACKUPS) {
-        let backup_name = format!("dcg-{}-{}", backup.version, backup.created_at);
+        let backup_name = backup_artifact_name(&backup);
         let backup_path = dir.join(&backup_name);
         let metadata_path = dir.join(format!("{backup_name}.json"));
 
@@ -272,7 +316,7 @@ pub fn rollback(target_version: Option<&str>) -> Result<String, VersionCheckErro
         VersionCheckError::BackupError("Could not determine backup directory".to_string())
     })?;
 
-    let backup_name = format!("dcg-{}-{}", backup.version, backup.created_at);
+    let backup_name = backup_artifact_name(backup);
     let backup_path = dir.join(&backup_name);
 
     if !backup_path.exists() {
@@ -563,7 +607,7 @@ fn fetch_latest_version() -> Result<VersionCheckResult, VersionCheckError> {
         current_version: current.to_string(),
         latest_version,
         update_available,
-        release_url: format!("https://github.com/{REPO_OWNER}/{REPO_NAME}/releases/latest"),
+        release_url: release_url_for_tag(&latest.version),
         release_notes,
         checked_at,
     };
@@ -628,6 +672,15 @@ fn truncate_release_notes(body: &str, max_chars: usize) -> String {
     let visible_limit = max_chars.saturating_sub(3);
     let truncated: String = body.chars().take(visible_limit).collect();
     format!("{truncated}...")
+}
+
+fn release_url_for_tag(tag: &str) -> String {
+    let trimmed = tag.trim();
+    if trimmed.is_empty() {
+        format!("https://github.com/{REPO_OWNER}/{REPO_NAME}/releases/latest")
+    } else {
+        format!("https://github.com/{REPO_OWNER}/{REPO_NAME}/releases/tag/{trimmed}")
+    }
 }
 
 /// Clear the version check cache.
@@ -835,6 +888,63 @@ mod tests {
     }
 
     #[test]
+    fn test_release_url_for_tag_uses_exact_tag() {
+        assert_eq!(
+            release_url_for_tag("v2.1.0"),
+            "https://github.com/Dicklesworthstone/destructive_command_guard/releases/tag/v2.1.0"
+        );
+        assert_eq!(
+            release_url_for_tag("2.1.0"),
+            "https://github.com/Dicklesworthstone/destructive_command_guard/releases/tag/2.1.0"
+        );
+    }
+
+    #[test]
+    fn test_release_url_for_tag_empty_uses_latest() {
+        assert_eq!(
+            release_url_for_tag(""),
+            "https://github.com/Dicklesworthstone/destructive_command_guard/releases/latest"
+        );
+    }
+
+    #[test]
+    fn test_generate_unique_backup_name_avoids_collision() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let dir = temp.path();
+        let timestamp = 1_737_200_000_u64;
+        let base = "dcg-0.2.12-1737200000";
+
+        std::fs::write(dir.join(base), b"binary").expect("seed backup artifact");
+        std::fs::write(dir.join(format!("{base}.json")), b"{}").expect("seed backup metadata");
+
+        let generated = generate_unique_backup_name(dir, "0.2.12", timestamp);
+        assert_ne!(generated, base);
+        assert!(generated.starts_with(&format!("{base}-")));
+    }
+
+    #[test]
+    fn test_backup_artifact_name_prefers_metadata() {
+        let with_name = BackupEntry {
+            version: "0.2.12".to_string(),
+            created_at: 1_737_200_000,
+            artifact_name: Some("dcg-0.2.12-1737200000-123456789".to_string()),
+            original_path: std::path::PathBuf::from("/usr/local/bin/dcg"),
+        };
+        assert_eq!(
+            backup_artifact_name(&with_name),
+            "dcg-0.2.12-1737200000-123456789"
+        );
+
+        let legacy = BackupEntry {
+            version: "0.2.11".to_string(),
+            created_at: 1_737_100_000,
+            artifact_name: None,
+            original_path: std::path::PathBuf::from("/usr/local/bin/dcg"),
+        };
+        assert_eq!(backup_artifact_name(&legacy), "dcg-0.2.11-1737100000");
+    }
+
+    #[test]
     fn test_version_check_result_serialization() {
         let result = VersionCheckResult {
             current_version: "0.2.12".to_string(),
@@ -918,6 +1028,7 @@ mod tests {
         let entry = BackupEntry {
             version: "0.2.12".to_string(),
             created_at: 1_737_200_000,
+            artifact_name: Some("dcg-0.2.12-1737200000".to_string()),
             original_path: std::path::PathBuf::from("/usr/local/bin/dcg"),
         };
 
@@ -926,6 +1037,7 @@ mod tests {
 
         assert_eq!(parsed.version, entry.version);
         assert_eq!(parsed.created_at, entry.created_at);
+        assert_eq!(parsed.artifact_name, entry.artifact_name);
         assert_eq!(parsed.original_path, entry.original_path);
     }
 
@@ -941,11 +1053,13 @@ mod tests {
             BackupEntry {
                 version: "0.2.12".to_string(),
                 created_at: 1_737_200_000,
+                artifact_name: None,
                 original_path: std::path::PathBuf::from("/usr/local/bin/dcg"),
             },
             BackupEntry {
                 version: "0.2.11".to_string(),
                 created_at: 1_737_100_000,
+                artifact_name: None,
                 original_path: std::path::PathBuf::from("/usr/local/bin/dcg"),
             },
         ];
@@ -1203,16 +1317,19 @@ mod tests {
             BackupEntry {
                 version: "0.2.10".to_string(),
                 created_at: 1_737_000_000, // oldest
+                artifact_name: None,
                 original_path: std::path::PathBuf::from("/usr/local/bin/dcg"),
             },
             BackupEntry {
                 version: "0.2.12".to_string(),
                 created_at: 1_737_200_000, // newest
+                artifact_name: None,
                 original_path: std::path::PathBuf::from("/usr/local/bin/dcg"),
             },
             BackupEntry {
                 version: "0.2.11".to_string(),
                 created_at: 1_737_100_000, // middle
+                artifact_name: None,
                 original_path: std::path::PathBuf::from("/usr/local/bin/dcg"),
             },
         ];
@@ -1230,6 +1347,7 @@ mod tests {
         let entries = vec![BackupEntry {
             version: "0.2.12".to_string(),
             created_at: 1_737_200_000,
+            artifact_name: None,
             original_path: std::path::PathBuf::from("/usr/local/bin/dcg"),
         }];
 

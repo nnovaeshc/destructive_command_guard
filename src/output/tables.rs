@@ -388,6 +388,7 @@ impl ScanResultsTable {
 }
 
 /// Returns short severity label.
+#[cfg(any(feature = "rich-output", test))]
 fn severity_label(severity: Severity) -> &'static str {
     match severity {
         Severity::Critical => "CRIT",

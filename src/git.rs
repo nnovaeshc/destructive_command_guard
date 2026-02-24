@@ -263,11 +263,20 @@ fn get_branch_from_head_file(working_dir: Option<&std::path::Path>) -> BranchInf
         Err(_) => return BranchInfo::NotGitRepo,
     };
 
+    parse_head_content(&head_content)
+}
+
+fn parse_head_content(head_content: &str) -> BranchInfo {
     let trimmed = head_content.trim();
 
-    // Check if it's a symbolic reference: "ref: refs/heads/<branch>"
-    if let Some(ref_path) = trimmed.strip_prefix("ref: refs/heads/") {
-        return BranchInfo::Branch(ref_path.to_string());
+    // Symbolic ref: "ref: refs/heads/<branch>" (normal) or other refs (detached-ish state)
+    if let Some(ref_path) = trimmed.strip_prefix("ref: ") {
+        if let Some(branch) = ref_path.strip_prefix("refs/heads/") {
+            return BranchInfo::Branch(branch.to_string());
+        }
+        // Non-head symbolic refs (e.g., refs/remotes/origin/main) are valid git states,
+        // but not local branches.
+        return BranchInfo::DetachedHead(None);
     }
 
     // It's a commit hash (detached HEAD)
@@ -308,7 +317,7 @@ fn find_git_dir(working_dir: Option<&std::path::Path>) -> Option<PathBuf> {
         if git_path.is_file() {
             // Worktree: .git file contains "gitdir: <path>"
             if let Ok(content) = std::fs::read_to_string(&git_path) {
-                if let Some(gitdir) = content.trim().strip_prefix("gitdir: ") {
+                if let Some(gitdir) = parse_gitdir_from_dot_git_file(&content) {
                     let gitdir_path = PathBuf::from(gitdir);
                     // Handle relative paths
                     let resolved = if gitdir_path.is_absolute() {
@@ -328,6 +337,15 @@ fn find_git_dir(working_dir: Option<&std::path::Path>) -> Option<PathBuf> {
     }
 }
 
+fn parse_gitdir_from_dot_git_file(content: &str) -> Option<&str> {
+    content.lines().find_map(|line| {
+        line.trim()
+            .strip_prefix("gitdir:")
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+    })
+}
+
 /// Check if the current directory is in a git repository.
 #[must_use]
 pub fn is_in_git_repo() -> bool {
@@ -343,6 +361,7 @@ pub fn is_in_git_repo_at_path(path: &std::path::Path) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn test_branch_info_methods() {
@@ -385,15 +404,14 @@ mod tests {
 
     #[test]
     fn test_head_file_parsing_branch() {
-        // Test the branch parsing logic without actually reading files
-        let content = "ref: refs/heads/feature/my-branch";
-        let trimmed = content.trim();
+        let info = parse_head_content("ref: refs/heads/feature/my-branch");
+        assert_eq!(info, BranchInfo::Branch("feature/my-branch".to_string()));
+    }
 
-        if let Some(branch) = trimmed.strip_prefix("ref: refs/heads/") {
-            assert_eq!(branch, "feature/my-branch");
-        } else {
-            panic!("Expected branch reference");
-        }
+    #[test]
+    fn test_head_file_parsing_non_head_ref_is_detached() {
+        let info = parse_head_content("ref: refs/remotes/origin/main");
+        assert_eq!(info, BranchInfo::DetachedHead(None));
     }
 
     #[test]
@@ -402,6 +420,38 @@ mod tests {
         let hash = "abc1234def5678";
         assert!(hash.len() >= 7 && hash.len() <= 40);
         assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
+        let info = parse_head_content(hash);
+        assert_eq!(info, BranchInfo::DetachedHead(Some("abc1234".to_string())));
+    }
+
+    #[test]
+    fn test_parse_gitdir_from_dot_git_file_multiline() {
+        let content = "gitdir: ../.git/worktrees/demo\nworktree: /tmp/demo\n";
+        assert_eq!(
+            parse_gitdir_from_dot_git_file(content),
+            Some("../.git/worktrees/demo")
+        );
+    }
+
+    #[test]
+    fn test_find_git_dir_resolves_worktree_pointer_file() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let repo_root = temp.path().join("repo");
+        let worktree = repo_root.join("nested").join("worktree");
+        let git_dir = repo_root.join(".real-git-dir");
+
+        fs::create_dir_all(&worktree).expect("create worktree");
+        fs::create_dir_all(&git_dir).expect("create git dir");
+
+        let dot_git = repo_root.join(".git");
+        fs::write(
+            &dot_git,
+            "gitdir: .real-git-dir\nworktree: nested/worktree\n",
+        )
+        .expect("write .git file");
+
+        let resolved = find_git_dir(Some(&worktree)).expect("resolve git dir");
+        assert_eq!(resolved, git_dir);
     }
 
     #[test]

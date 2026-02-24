@@ -2389,7 +2389,9 @@ mod hook_highlighting_tests {
         let mut caret_line_idx = None;
 
         for (i, line) in lines.iter().enumerate() {
-            if (line.contains("Command:") || line.contains("git reset --hard")) && line.contains("git") {
+            if (line.contains("Command:") || line.contains("git reset --hard"))
+                && line.contains("git")
+            {
                 command_line_idx = Some(i);
             }
             if line.contains("^^^^") && command_line_idx.is_some() {
@@ -2433,7 +2435,12 @@ mod hook_highlighting_tests {
                 caret_line_idx = Some(i);
             }
             // In the new box format, a blank line or explanation follows the caret
-            if (line.contains("Matched:") || line.contains("EXPLANATION:") || line.trim().is_empty()) && caret_line_idx.is_some() && label_line_idx.is_none() {
+            if (line.contains("Matched:")
+                || line.contains("EXPLANATION:")
+                || line.trim().is_empty())
+                && caret_line_idx.is_some()
+                && label_line_idx.is_none()
+            {
                 label_line_idx = Some(i);
             }
         }
@@ -2451,7 +2458,7 @@ mod hook_highlighting_tests {
         let caret_idx = caret_line_idx.unwrap();
         let label_idx = label_line_idx.unwrap();
         assert!(
-            label_idx >= caret_idx + 1 && label_idx <= caret_idx + 3,
+            label_idx > caret_idx && label_idx <= caret_idx + 3,
             "content should follow caret line within a few lines\nstderr:\n{stderr}"
         );
     }
@@ -2671,7 +2678,10 @@ mod hook_highlighting_tests {
 
         // stderr should contain reason/explanation info
         assert!(
-            stderr.contains("Reason:") || stderr.contains("EXPLANATION:") || stderr.contains("dangerous") || stderr.contains("Pattern:"),
+            stderr.contains("Reason:")
+                || stderr.contains("EXPLANATION:")
+                || stderr.contains("dangerous")
+                || stderr.contains("Pattern:"),
             "stderr should contain reason/explanation information\nstderr:\n{stderr}"
         );
 
@@ -2835,13 +2845,15 @@ mod explanation_output_tests {
             // Count continuation lines (indented lines after Explanation:)
             // These would be lines that are part of the explanation text
             // In the new box format, lines start with "|" instead of "│"
-            if found_explanation && (line.starts_with("│") || line.starts_with("|")) && !line.contains("Command:") && !line.contains("Pattern:") {
+            if found_explanation
+                && (line.starts_with('│') || line.starts_with('|'))
+                && !line.contains("Command:")
+                && !line.contains("Pattern:")
+            {
                 explanation_line_count += 1;
             }
-            if line.contains("Command:") || line.contains("Pattern:") {
-                if found_explanation {
-                    break;
-                }
+            if (line.contains("Command:") || line.contains("Pattern:")) && found_explanation {
+                break;
             }
         }
 
@@ -2994,7 +3006,9 @@ mod explanation_output_tests {
 
         // stderr should contain reason/explanation
         assert!(
-            stderr.contains("Reason:") || stderr.contains("EXPLANATION:") || stderr.contains("Explanation:"),
+            stderr.contains("Reason:")
+                || stderr.contains("EXPLANATION:")
+                || stderr.contains("Explanation:"),
             "stderr should contain reason/explanation\nstderr:\n{stderr}"
         );
 
@@ -3027,14 +3041,20 @@ mod explanation_output_tests {
         );
 
         // Check for comprehensive context in verbose output
-        let has_rule = stderr.contains("Rule:") || stderr.contains("Pack:") || stderr.contains("Pattern:");
-        let has_reason = stderr.contains("Reason:") || stderr.contains("EXPLANATION:") || stderr.contains("Explanation:");
+        let has_rule =
+            stderr.contains("Rule:") || stderr.contains("Pack:") || stderr.contains("Pattern:");
+        let has_reason = stderr.contains("Reason:")
+            || stderr.contains("EXPLANATION:")
+            || stderr.contains("Explanation:");
         let has_explanation = stderr.contains("Explanation:") || stderr.contains("EXPLANATION:");
         let has_command = stderr.contains("Command:") || stderr.contains("git push");
         let has_suggestions = stderr.contains("💡") || stderr.contains("Safer");
 
         assert!(has_rule, "should show rule/pack info\nstderr:\n{stderr}");
-        assert!(has_reason, "should show reason/explanation\nstderr:\n{stderr}");
+        assert!(
+            has_reason,
+            "should show reason/explanation\nstderr:\n{stderr}"
+        );
         assert!(
             has_explanation,
             "should show explanation\nstderr:\n{stderr}"
@@ -3069,7 +3089,10 @@ mod explanation_output_tests {
             if json["hookSpecificOutput"]["permissionDecision"] == "deny" {
                 // Denied commands should show either an explanation or at least pattern/pack info
                 assert!(
-                    stderr.contains("Explanation:") || stderr.contains("EXPLANATION:") || stderr.contains("Pattern:") || stderr.contains("Pack:"),
+                    stderr.contains("Explanation:")
+                        || stderr.contains("EXPLANATION:")
+                        || stderr.contains("Pattern:")
+                        || stderr.contains("Pack:"),
                     "command '{cmd}' should show explanation or pattern info when denied\nstderr:\n{stderr}"
                 );
             }

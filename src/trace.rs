@@ -598,26 +598,28 @@ impl ExplainTrace {
         // ═══════════════════════════════════════════════════════════════════
         // SUGGESTIONS
         // ═══════════════════════════════════════════════════════════════════
-        if let Some(ref info) = self.match_info {
-            if let Some(rule_id) = info.rule_id.as_deref() {
-                if let Some(suggestions) = crate::suggestions::get_suggestions(rule_id) {
-                    if !suggestions.is_empty() {
-                        out.push_str(&format!("{bold}─── Suggestions ───────────────────────────────────────────────────{reset}\n"));
+        if crate::output::suggestions_requested() {
+            if let Some(ref info) = self.match_info {
+                if let Some(rule_id) = info.rule_id.as_deref() {
+                    if let Some(suggestions) = crate::suggestions::get_suggestions(rule_id) {
+                        if !suggestions.is_empty() {
+                            out.push_str(&format!("{bold}─── Suggestions ───────────────────────────────────────────────────{reset}\n"));
 
-                        for s in suggestions {
-                            out.push_str(&format!(
-                                "{yellow}• {}{reset}: {}\n",
-                                s.kind.label(),
-                                s.text
-                            ));
-                            if let Some(ref cmd) = s.command {
-                                out.push_str(&format!("  {dim}${reset} {green}{cmd}{reset}\n"));
+                            for s in suggestions {
+                                out.push_str(&format!(
+                                    "{yellow}• {}{reset}: {}\n",
+                                    s.kind.label(),
+                                    s.text
+                                ));
+                                if let Some(ref cmd) = s.command {
+                                    out.push_str(&format!("  {dim}${reset} {green}{cmd}{reset}\n"));
+                                }
+                                if let Some(ref url) = s.url {
+                                    out.push_str(&format!("  {dim}→ {url}{reset}\n"));
+                                }
                             }
-                            if let Some(ref url) = s.url {
-                                out.push_str(&format!("  {dim}→ {url}{reset}\n"));
-                            }
+                            out.push('\n');
                         }
-                        out.push('\n');
                     }
                 }
             }
@@ -654,23 +656,26 @@ impl ExplainTrace {
     #[must_use]
     pub fn to_json_output(&self) -> ExplainJsonOutput {
         // Collect suggestions from registry if we have a rule_id
-        let suggestions: Vec<JsonSuggestion> = self
-            .match_info
-            .as_ref()
-            .and_then(|m| m.rule_id.as_deref())
-            .and_then(crate::suggestions::get_suggestions)
-            .map(|slist| {
-                slist
-                    .iter()
-                    .map(|s| JsonSuggestion {
-                        kind: s.kind.label().to_string(),
-                        text: s.text.clone(),
-                        command: s.command.clone(),
-                        url: s.url.clone(),
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
+        let suggestions: Vec<JsonSuggestion> = if crate::output::suggestions_requested() {
+            self.match_info
+                .as_ref()
+                .and_then(|m| m.rule_id.as_deref())
+                .and_then(crate::suggestions::get_suggestions)
+                .map(|slist| {
+                    slist
+                        .iter()
+                        .map(|s| JsonSuggestion {
+                            kind: s.kind.label().to_string(),
+                            text: s.text.clone(),
+                            command: s.command.clone(),
+                            url: s.url.clone(),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default()
+        } else {
+            Vec::new()
+        };
 
         ExplainJsonOutput {
             schema_version: EXPLAIN_JSON_SCHEMA_VERSION,

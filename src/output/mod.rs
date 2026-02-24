@@ -239,12 +239,16 @@ pub fn terminal_height() -> u16 {
 /// - When explicitly disabled via `--no-suggestions`
 #[must_use]
 pub fn suggestions_enabled() -> bool {
-    // Check explicit disable first
-    if !SUGGESTIONS_ENABLED.get().copied().unwrap_or(true) {
-        return false;
-    }
-    // Only show suggestions in rich output mode (TTY)
-    should_use_rich_output()
+    suggestions_requested() && should_use_rich_output()
+}
+
+/// Returns whether suggestions are enabled by explicit user setting.
+///
+/// Unlike [`suggestions_enabled`], this does not depend on TTY/CI detection.
+/// Use this when logic should respect `--no-suggestions` in all output formats.
+#[must_use]
+pub fn suggestions_requested() -> bool {
+    SUGGESTIONS_ENABLED.get().copied().unwrap_or(true)
 }
 
 #[cfg(test)]

@@ -47,10 +47,11 @@ use tracing::{debug, error, trace, warn};
 pub use schema::{
     AgentStat, BackupResult, CURRENT_SCHEMA_VERSION, CheckResult, CommandEntry,
     DEFAULT_DB_FILENAME, ExportFilters, ExportOptions, ExportedData, FrequentBlock,
-    HistoryAnalyzer, HistoryDb, HistoryError, HistoryStats, Outcome, OutcomeStats,
-    PackEffectivenessAnalysis, PackRecommendation, PathCluster, PatternEffectiveness, PatternStat,
-    PerformanceStats, PotentialGap, ProjectStat, RecommendationType, RuleMetrics, RuleTrend,
-    StatsTrends, SuggestionAction, SuggestionAuditEntry, SuggestionCandidate,
+    HistoryAnalyzer, HistoryDb, HistoryError, HistoryStats, InteractiveAllowlistAuditEntry,
+    InteractiveAllowlistOptionType, Outcome, OutcomeStats, PackEffectivenessAnalysis,
+    PackRecommendation, PathCluster, PatternEffectiveness, PatternStat, PerformanceStats,
+    PotentialGap, ProjectStat, RecommendationType, RuleMetrics, RuleTrend, StatsTrends,
+    SuggestionAction, SuggestionAuditEntry, SuggestionCandidate,
 };
 
 /// Environment variable to override the history database path.

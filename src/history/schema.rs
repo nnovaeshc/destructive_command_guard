@@ -132,7 +132,7 @@ fn inline_params(sql: &str, params: &[SqliteValue]) -> String {
 }
 
 /// Current schema version for migrations.
-pub const CURRENT_SCHEMA_VERSION: u32 = 5;
+pub const CURRENT_SCHEMA_VERSION: u32 = 6;
 
 /// Default database filename.
 pub const DEFAULT_DB_FILENAME: &str = "history.db";
@@ -1268,6 +1268,25 @@ impl HistoryDb {
         )?;
         self.conn.execute("CREATE INDEX IF NOT EXISTS idx_suggestion_audit_session_id ON suggestion_audit(session_id)")?;
 
+        // Create interactive_allowlist_audit table for interactive allowlist actions (v6 feature)
+        self.conn.execute(
+            r"CREATE TABLE IF NOT EXISTS interactive_allowlist_audit (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                command TEXT NOT NULL,
+                pattern_added TEXT NOT NULL,
+                option_type TEXT NOT NULL CHECK (option_type IN ('exact', 'temporary', 'path_specific')),
+                option_detail TEXT,
+                config_file TEXT NOT NULL,
+                cwd TEXT,
+                user TEXT
+            )",
+        )?;
+
+        // Create indexes for interactive_allowlist_audit
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_interactive_allowlist_audit_timestamp ON interactive_allowlist_audit(timestamp)")?;
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_interactive_allowlist_audit_option_type ON interactive_allowlist_audit(option_type)")?;
+
         // Record schema version.
         // Use INSERT OR REPLACE so that reopening a file-backed database whose
         // pager already contains the schema_version row does not fail with a
@@ -1299,6 +1318,9 @@ impl HistoryDb {
         }
         if from_version < 5 {
             self.migrate_v4_to_v5()?;
+        }
+        if from_version < 6 {
+            self.migrate_v5_to_v6()?;
         }
 
         // Ensure we're at the expected version
@@ -1447,6 +1469,41 @@ impl HistoryDb {
                 SqliteValue::Integer(5),
                 SqliteValue::Text(
                     "Add suggestion_audit table for tracking suggestion actions".to_string(),
+                ),
+            ],
+        )?;
+
+        Ok(())
+    }
+
+    fn migrate_v5_to_v6(&self) -> Result<(), HistoryError> {
+        // Add interactive_allowlist_audit table for tracking interactive allowlist operations
+        self.conn.execute(
+            r"CREATE TABLE IF NOT EXISTS interactive_allowlist_audit (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TEXT NOT NULL,
+                command TEXT NOT NULL,
+                pattern_added TEXT NOT NULL,
+                option_type TEXT NOT NULL CHECK (option_type IN ('exact', 'temporary', 'path_specific')),
+                option_detail TEXT,
+                config_file TEXT NOT NULL,
+                cwd TEXT,
+                user TEXT
+            )",
+        )?;
+
+        // Create indexes for common query patterns
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_interactive_allowlist_audit_timestamp ON interactive_allowlist_audit(timestamp)")?;
+        self.conn.execute("CREATE INDEX IF NOT EXISTS idx_interactive_allowlist_audit_option_type ON interactive_allowlist_audit(option_type)")?;
+
+        // Record migration
+        self.conn.execute_with_params(
+            "INSERT OR REPLACE INTO schema_version (version, description) VALUES (?1, ?2)",
+            &[
+                SqliteValue::Integer(6),
+                SqliteValue::Text(
+                    "Add interactive_allowlist_audit table for interactive allowlist actions"
+                        .to_string(),
                 ),
             ],
         )?;
@@ -2971,6 +3028,124 @@ impl HistoryDb {
         }
         Ok(entries)
     }
+
+    // ========================================================================
+    // Interactive Allowlist Audit Logging
+    // ========================================================================
+
+    /// Log an interactive allowlist audit entry to the database.
+    ///
+    /// Records when a user adds an interactive allowlist entry from CLI flows.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the insert fails.
+    pub fn log_interactive_allowlist_audit(
+        &self,
+        entry: &InteractiveAllowlistAuditEntry,
+    ) -> Result<i64, HistoryError> {
+        let timestamp = entry.timestamp.format("%Y-%m-%dT%H:%M:%S%.3fZ").to_string();
+
+        self.conn.execute_with_params(
+            r"INSERT INTO interactive_allowlist_audit (
+                timestamp, command, pattern_added, option_type, option_detail,
+                config_file, cwd, user
+            ) VALUES (
+                ?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8
+            )",
+            &[
+                SqliteValue::Text(timestamp),
+                SqliteValue::Text(entry.command.clone()),
+                SqliteValue::Text(entry.pattern_added.clone()),
+                SqliteValue::Text(entry.option_type.as_str().to_string()),
+                opt_string_to_sv(entry.option_detail.as_ref()),
+                SqliteValue::Text(entry.config_file.clone()),
+                opt_string_to_sv(entry.cwd.as_ref()),
+                opt_string_to_sv(entry.user.as_ref()),
+            ],
+        )?;
+
+        let row = self
+            .conn
+            .query_row("SELECT max(id) FROM interactive_allowlist_audit")?;
+        Ok(sv_to_i64(&row.values()[0]))
+    }
+
+    /// Count interactive allowlist audit entries in the database.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the query fails.
+    pub fn count_interactive_allowlist_audits(&self) -> Result<u64, HistoryError> {
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM interactive_allowlist_audit")
+            .map(|row| sv_to_i64(&row.values()[0]))
+            .map_err(HistoryError::Sqlite)?;
+        Ok(u64::try_from(count).unwrap_or(0))
+    }
+
+    /// Query recent interactive allowlist audit entries.
+    ///
+    /// # Arguments
+    ///
+    /// * `limit` - Maximum number of entries to return
+    /// * `option_type_filter` - Optional filter by option type
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the query fails.
+    pub fn query_interactive_allowlist_audits(
+        &self,
+        limit: usize,
+        option_type_filter: Option<InteractiveAllowlistOptionType>,
+    ) -> Result<Vec<InteractiveAllowlistAuditEntry>, HistoryError> {
+        let mut sql = String::from(
+            "SELECT timestamp, command, pattern_added, option_type, option_detail,
+                    config_file, cwd, user
+             FROM interactive_allowlist_audit",
+        );
+
+        let mut params: Vec<SqliteValue> = Vec::new();
+        let mut param_idx = 1;
+
+        if let Some(option_type) = option_type_filter {
+            write!(sql, " WHERE option_type = ?{param_idx}").unwrap();
+            params.push(SqliteValue::Text(option_type.as_str().to_string()));
+            param_idx += 1;
+        }
+
+        write!(sql, " ORDER BY timestamp DESC LIMIT ?{param_idx}").unwrap();
+        params.push(SqliteValue::Integer(
+            i64::try_from(limit).unwrap_or(i64::MAX),
+        ));
+
+        let rows = self.conn.query(&inline_params(&sql, &params))?;
+
+        let mut entries = Vec::new();
+        for row in &rows {
+            let vals = row.values();
+            let timestamp_str = sv_to_string(&vals[0]);
+            let timestamp = DateTime::parse_from_rfc3339(&timestamp_str)
+                .map_or_else(|_| Utc::now(), |dt| dt.with_timezone(&Utc));
+
+            let option_type = InteractiveAllowlistOptionType::parse(&sv_to_string(&vals[3]))
+                .unwrap_or(InteractiveAllowlistOptionType::Exact);
+
+            entries.push(InteractiveAllowlistAuditEntry {
+                timestamp,
+                command: sv_to_string(&vals[1]),
+                pattern_added: sv_to_string(&vals[2]),
+                option_type,
+                option_detail: sv_to_opt_string(&vals[4]),
+                config_file: sv_to_string(&vals[5]),
+                cwd: sv_to_opt_string(&vals[6]),
+                user: sv_to_opt_string(&vals[7]),
+            });
+        }
+
+        Ok(entries)
+    }
 }
 
 /// Truncate a string for display.
@@ -3292,6 +3467,94 @@ impl Default for SuggestionAuditEntry {
             rule_id: None,
             session_id: None,
             working_dir: None,
+        }
+    }
+}
+
+/// Type of interactive allowlist option selected by the user.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum InteractiveAllowlistOptionType {
+    /// Exact command was allowlisted without temporary expiry/path scoping.
+    Exact,
+    /// Command/rule was allowlisted temporarily with expiration.
+    Temporary,
+    /// Command/rule was allowlisted with path-specific scope.
+    PathSpecific,
+}
+
+impl InteractiveAllowlistOptionType {
+    /// Convert to database string representation.
+    #[must_use]
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Self::Exact => "exact",
+            Self::Temporary => "temporary",
+            Self::PathSpecific => "path_specific",
+        }
+    }
+
+    /// Parse from database/CLI string representation.
+    #[must_use]
+    pub fn parse(s: &str) -> Option<Self> {
+        match s.to_ascii_lowercase().as_str() {
+            "exact" => Some(Self::Exact),
+            "temporary" | "temp" => Some(Self::Temporary),
+            "path_specific" | "path-specific" | "path" => Some(Self::PathSpecific),
+            _ => None,
+        }
+    }
+}
+
+impl std::str::FromStr for InteractiveAllowlistOptionType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::parse(s).ok_or(())
+    }
+}
+
+impl std::fmt::Display for InteractiveAllowlistOptionType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+/// Audit entry for an interactive allowlist action.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct InteractiveAllowlistAuditEntry {
+    /// Timestamp when the interactive allowlist action occurred.
+    pub timestamp: DateTime<Utc>,
+    /// Original command that was being evaluated.
+    pub command: String,
+    /// Pattern added to allowlist (rule ID or exact command).
+    pub pattern_added: String,
+    /// Option type selected by the user (exact/temporary/path-specific).
+    pub option_type: InteractiveAllowlistOptionType,
+    /// Optional detail string (e.g., target/layer/expiry/paths metadata).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub option_detail: Option<String>,
+    /// Config file path that was modified.
+    pub config_file: String,
+    /// Current working directory where action was taken.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cwd: Option<String>,
+    /// Username associated with the action.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user: Option<String>,
+}
+
+impl Default for InteractiveAllowlistAuditEntry {
+    fn default() -> Self {
+        Self {
+            timestamp: Utc::now(),
+            command: String::new(),
+            pattern_added: String::new(),
+            option_type: InteractiveAllowlistOptionType::Exact,
+            option_detail: None,
+            config_file: String::new(),
+            cwd: None,
+            user: None,
         }
     }
 }
@@ -5010,6 +5273,92 @@ mod tests {
         assert_eq!(stored.rule_id, None);
         assert_eq!(stored.session_id, None);
         assert_eq!(stored.working_dir, None);
+    }
+
+    // ==========================================================================
+    // Interactive Allowlist Audit Tests
+    // ==========================================================================
+
+    fn test_interactive_audit_entry(
+        option_type: InteractiveAllowlistOptionType,
+    ) -> InteractiveAllowlistAuditEntry {
+        InteractiveAllowlistAuditEntry {
+            timestamp: Utc::now(),
+            command: "git reset --hard HEAD~1".to_string(),
+            pattern_added: "core.git:reset-hard".to_string(),
+            option_type,
+            option_detail: Some("target=rule;scope=all directories;layer=project".to_string()),
+            config_file: "/home/user/project/.dcg/allowlist.toml".to_string(),
+            cwd: Some("/home/user/project".to_string()),
+            user: Some("tester".to_string()),
+        }
+    }
+
+    #[test]
+    fn test_log_interactive_allowlist_audit_inserts_entry() {
+        let db = HistoryDb::open_in_memory().unwrap();
+        let entry = test_interactive_audit_entry(InteractiveAllowlistOptionType::Exact);
+
+        let id = db.log_interactive_allowlist_audit(&entry).unwrap();
+        assert!(id > 0, "should return a positive ID");
+
+        let count = db.count_interactive_allowlist_audits().unwrap();
+        assert_eq!(count, 1);
+    }
+
+    #[test]
+    fn test_query_interactive_allowlist_audits_filters_by_option_type() {
+        let db = HistoryDb::open_in_memory().unwrap();
+
+        for _ in 0..2 {
+            db.log_interactive_allowlist_audit(&test_interactive_audit_entry(
+                InteractiveAllowlistOptionType::Exact,
+            ))
+            .unwrap();
+        }
+        for _ in 0..3 {
+            db.log_interactive_allowlist_audit(&test_interactive_audit_entry(
+                InteractiveAllowlistOptionType::Temporary,
+            ))
+            .unwrap();
+        }
+
+        let all = db.query_interactive_allowlist_audits(100, None).unwrap();
+        assert_eq!(all.len(), 5);
+
+        let temporary = db
+            .query_interactive_allowlist_audits(
+                100,
+                Some(InteractiveAllowlistOptionType::Temporary),
+            )
+            .unwrap();
+        assert_eq!(temporary.len(), 3);
+        assert!(
+            temporary
+                .iter()
+                .all(|e| e.option_type == InteractiveAllowlistOptionType::Temporary)
+        );
+    }
+
+    #[test]
+    fn test_interactive_allowlist_option_type_parse_aliases() {
+        assert_eq!(
+            InteractiveAllowlistOptionType::parse("exact"),
+            Some(InteractiveAllowlistOptionType::Exact)
+        );
+        assert_eq!(
+            InteractiveAllowlistOptionType::parse("temporary"),
+            Some(InteractiveAllowlistOptionType::Temporary)
+        );
+        assert_eq!(
+            InteractiveAllowlistOptionType::parse("path-specific"),
+            Some(InteractiveAllowlistOptionType::PathSpecific)
+        );
+        assert_eq!(
+            InteractiveAllowlistOptionType::parse("path"),
+            Some(InteractiveAllowlistOptionType::PathSpecific)
+        );
+        assert_eq!(InteractiveAllowlistOptionType::parse("unknown"), None);
     }
 
     // ============================================================================

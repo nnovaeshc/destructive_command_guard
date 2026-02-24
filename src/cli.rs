@@ -17,7 +17,8 @@ use crate::evaluator::{
 use crate::exit_codes::EXIT_DENIED;
 use crate::highlight::{HighlightSpan, format_highlighted_command, should_use_color};
 use crate::history::{
-    ExportOptions, HistoryDb, HistoryStats, Outcome, SuggestionAction, SuggestionAuditEntry,
+    ExportOptions, HistoryDb, HistoryStats, InteractiveAllowlistAuditEntry,
+    InteractiveAllowlistOptionType, Outcome, SuggestionAction, SuggestionAuditEntry,
 };
 use crate::interactive::{
     AllowlistScope, InteractiveConfig, InteractiveResult, check_interactive_available,
@@ -904,6 +905,22 @@ pub enum HistoryAction {
         compress: bool,
     },
 
+    /// Show interactive allowlist audit entries
+    #[command(name = "interactive")]
+    Interactive {
+        /// Maximum number of entries to show
+        #[arg(long, value_name = "N", default_value = "50")]
+        limit: usize,
+
+        /// Filter by option type (exact, temporary, path_specific)
+        #[arg(long, value_name = "TYPE")]
+        option: Option<String>,
+
+        /// Output as JSON
+        #[arg(long)]
+        json: bool,
+    },
+
     /// Analyze pack effectiveness and generate recommendations
     #[command(name = "analyze")]
     Analyze {
@@ -1338,6 +1355,10 @@ pub enum AllowlistAction {
         /// Environment condition (e.g., CI=true)
         #[arg(long = "condition", value_name = "KEY=VAL")]
         conditions: Vec<String>,
+
+        /// Path glob pattern where this entry applies (repeatable)
+        #[arg(long = "path", value_name = "GLOB")]
+        paths: Vec<String>,
     },
 
     /// Add an exact command to the allowlist
@@ -1361,6 +1382,10 @@ pub enum AllowlistAction {
         /// Expiration date (ISO 8601 / RFC 3339)
         #[arg(long)]
         expires: Option<String>,
+
+        /// Path glob pattern where this entry applies (repeatable)
+        #[arg(long = "path", value_name = "GLOB")]
+        paths: Vec<String>,
     },
 
     /// List allowlist entries
@@ -3093,6 +3118,197 @@ fn prompt_allowlist_reason(default_reason: &str) -> String {
         .unwrap_or_else(|_| default_reason.to_string())
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum InteractiveAllowlistTarget {
+    ExactCommand,
+    MatchedRule,
+}
+
+#[derive(Debug, Clone)]
+struct InteractiveAllowlistApplication {
+    summary: String,
+    pattern_added: String,
+    option_type: InteractiveAllowlistOptionType,
+    option_detail: Option<String>,
+    config_file: std::path::PathBuf,
+}
+
+fn prompt_allowlist_target(rule_id: Option<&str>) -> InteractiveAllowlistTarget {
+    let Some(rule_id) = rule_id else {
+        return InteractiveAllowlistTarget::ExactCommand;
+    };
+
+    let exact = "Exact command only (recommended)".to_string();
+    let rule = format!("Matched rule `{rule_id}` (broader)");
+    let options = vec![exact.clone(), rule.clone()];
+
+    match Select::new("Allowlist target:", options)
+        .with_help_message(
+            "Exact command is safer; rule-based allows all future matches of this rule",
+        )
+        .prompt()
+    {
+        Ok(choice) if choice == rule => InteractiveAllowlistTarget::MatchedRule,
+        _ => InteractiveAllowlistTarget::ExactCommand,
+    }
+}
+
+fn prompt_allowlist_path_scope() -> Vec<String> {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let scope_path = cwd.canonicalize().unwrap_or(cwd);
+    let scope_path_str = scope_path.to_string_lossy().into_owned();
+
+    let scoped = format!("Current directory only ({scope_path_str})");
+    let global = "All directories (global)".to_string();
+    let options = vec![scoped.clone(), global];
+
+    match Select::new("Path scope:", options)
+        .with_help_message("Directory-scoped entries are safer")
+        .prompt()
+    {
+        Ok(choice) if choice == scoped => vec![scope_path_str],
+        _ => Vec::new(),
+    }
+}
+
+fn prompt_allowlist_lifetime_choice() -> Option<std::time::Duration> {
+    let permanent = "Permanent allowlist entry".to_string();
+    let temporary = "Temporary allowlist entry (24 hours)".to_string();
+    let options = vec![permanent.clone(), temporary.clone()];
+
+    match Select::new("Lifetime:", options)
+        .with_help_message("Temporary entries auto-expire and are safer")
+        .prompt()
+    {
+        Ok(choice) if choice == temporary => Some(std::time::Duration::from_secs(24 * 3600)),
+        _ => None,
+    }
+}
+
+fn duration_to_expires_at(
+    duration: std::time::Duration,
+) -> Result<String, Box<dyn std::error::Error>> {
+    let duration = chrono::Duration::from_std(duration)
+        .map_err(|e| format!("Failed to convert duration: {e}"))?;
+    let expires_at = Utc::now()
+        .checked_add_signed(duration)
+        .ok_or("Duration overflow while computing expiration timestamp")?;
+    Ok(expires_at.to_rfc3339())
+}
+
+fn interactive_option_type(
+    expires: Option<&str>,
+    paths: &[String],
+) -> InteractiveAllowlistOptionType {
+    if expires.is_some() {
+        InteractiveAllowlistOptionType::Temporary
+    } else if paths.is_empty() {
+        InteractiveAllowlistOptionType::Exact
+    } else {
+        InteractiveAllowlistOptionType::PathSpecific
+    }
+}
+
+fn current_username() -> Option<String> {
+    ["USER", "LOGNAME", "USERNAME"]
+        .iter()
+        .find_map(|key| std::env::var(key).ok())
+        .and_then(|value| (!value.trim().is_empty()).then_some(value))
+}
+
+fn apply_interactive_allowlist_entry(
+    command: &str,
+    rule_id: Option<&str>,
+    reason: &str,
+    layer: crate::allowlist::AllowlistLayer,
+    expires: Option<&str>,
+) -> Result<InteractiveAllowlistApplication, Box<dyn std::error::Error>> {
+    let target = prompt_allowlist_target(rule_id);
+    let paths = prompt_allowlist_path_scope();
+    let option_type = interactive_option_type(expires, &paths);
+    let option_detail = Some(format!(
+        "target={};scope={};layer={};expires={};paths={}",
+        match target {
+            InteractiveAllowlistTarget::ExactCommand => "exact_command",
+            InteractiveAllowlistTarget::MatchedRule => "matched_rule",
+        },
+        if paths.is_empty() {
+            "all_directories"
+        } else {
+            "current_directory_only"
+        },
+        layer.label(),
+        expires.unwrap_or("none"),
+        if paths.is_empty() {
+            "*".to_string()
+        } else {
+            paths.join("|")
+        }
+    ));
+    let config_file = allowlist_path_for_layer(layer);
+
+    let scope_label = if paths.is_empty() {
+        "all directories"
+    } else {
+        "current directory only"
+    };
+
+    match (target, rule_id) {
+        (InteractiveAllowlistTarget::MatchedRule, Some(rule_id)) => {
+            allowlist_add_rule_with_paths(rule_id, reason, layer, expires, &[], &paths)?;
+            Ok(InteractiveAllowlistApplication {
+                summary: format!("rule target, {scope_label}"),
+                pattern_added: rule_id.to_string(),
+                option_type,
+                option_detail,
+                config_file,
+            })
+        }
+        _ => {
+            allowlist_add_command_with_paths(command, reason, layer, expires, &paths)?;
+            Ok(InteractiveAllowlistApplication {
+                summary: format!("exact command target, {scope_label}"),
+                pattern_added: command.to_string(),
+                option_type,
+                option_detail,
+                config_file,
+            })
+        }
+    }
+}
+
+fn log_interactive_allowlist_audit_event(
+    config: &Config,
+    command: &str,
+    applied: &InteractiveAllowlistApplication,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if !config.history.enabled {
+        return Ok(());
+    }
+
+    let db_path = config.history.expanded_database_path();
+    let db = HistoryDb::open(db_path)?;
+
+    let cwd = std::env::current_dir()
+        .ok()
+        .and_then(|path| path.canonicalize().ok().or(Some(path)))
+        .map(|path| path.to_string_lossy().into_owned());
+
+    let entry = InteractiveAllowlistAuditEntry {
+        timestamp: Utc::now(),
+        command: command.to_string(),
+        pattern_added: applied.pattern_added.clone(),
+        option_type: applied.option_type,
+        option_detail: applied.option_detail.clone(),
+        config_file: applied.config_file.to_string_lossy().into_owned(),
+        cwd,
+        user: current_username(),
+    };
+
+    let _ = db.log_interactive_allowlist_audit(&entry)?;
+    Ok(())
+}
+
 fn resolve_mode_for_cli(
     config: &Config,
     command: &str,
@@ -3468,35 +3684,84 @@ fn test_command(
                                         result_line = "Result: ALLOWED (session only)".to_string();
                                     }
                                     AllowlistScope::Temporary(duration) => {
+                                        let layer = resolve_layer(false, false);
                                         let hours = duration.as_secs() / 3600;
-                                        result_line =
-                                            format!("Result: ALLOWED (temporary, {hours} hours)");
+                                        match duration_to_expires_at(duration) {
+                                            Ok(expires) => {
+                                                let reason = "Verified bypass via dcg test (security prompt temporary)";
+                                                match apply_interactive_allowlist_entry(
+                                                    command,
+                                                    rule_id.as_deref(),
+                                                    reason,
+                                                    layer,
+                                                    Some(expires.as_str()),
+                                                ) {
+                                                    Ok(applied) => {
+                                                        if let Err(err) =
+                                                            log_interactive_allowlist_audit_event(
+                                                                &effective_config,
+                                                                command,
+                                                                &applied,
+                                                            )
+                                                        {
+                                                            eprintln!(
+                                                                "Warning: failed to write interactive allowlist audit: {err}"
+                                                            );
+                                                        }
+                                                        result_line = format!(
+                                                            "Result: ALLOWED (temporary allowlisted in {} for {} hours; {})",
+                                                            layer.label(),
+                                                            hours,
+                                                            applied.summary
+                                                        );
+                                                    }
+                                                    Err(err) => {
+                                                        eprintln!("Allowlist update failed: {err}");
+                                                        result_line = "Result: BLOCKED".to_string();
+                                                    }
+                                                }
+                                            }
+                                            Err(err) => {
+                                                eprintln!(
+                                                    "Failed to compute temporary expiration: {err}"
+                                                );
+                                                result_line = "Result: BLOCKED".to_string();
+                                            }
+                                        }
                                     }
                                     AllowlistScope::Permanent => {
                                         let layer = resolve_layer(false, false);
                                         let reason =
                                             "Verified bypass via dcg test (security prompt)";
-                                        let add_result = rule_id.as_ref().map_or_else(
-                                            || allowlist_add_command(command, reason, layer, None),
-                                            |rule_id| {
-                                                allowlist_add_rule(
-                                                    rule_id,
-                                                    reason,
-                                                    layer,
-                                                    None,
-                                                    &[],
-                                                )
-                                            },
-                                        );
-
-                                        if let Err(err) = add_result {
-                                            eprintln!("Allowlist update failed: {err}");
-                                            result_line = "Result: BLOCKED".to_string();
-                                        } else {
-                                            result_line = format!(
-                                                "Result: ALLOWED (allowlisted in {})",
-                                                layer.label()
-                                            );
+                                        match apply_interactive_allowlist_entry(
+                                            command,
+                                            rule_id.as_deref(),
+                                            reason,
+                                            layer,
+                                            None,
+                                        ) {
+                                            Ok(applied) => {
+                                                if let Err(err) =
+                                                    log_interactive_allowlist_audit_event(
+                                                        &effective_config,
+                                                        command,
+                                                        &applied,
+                                                    )
+                                                {
+                                                    eprintln!(
+                                                        "Warning: failed to write interactive allowlist audit: {err}"
+                                                    );
+                                                }
+                                                result_line = format!(
+                                                    "Result: ALLOWED (allowlisted in {}; {})",
+                                                    layer.label(),
+                                                    applied.summary
+                                                );
+                                            }
+                                            Err(err) => {
+                                                eprintln!("Allowlist update failed: {err}");
+                                                result_line = "Result: BLOCKED".to_string();
+                                            }
                                         }
                                     }
                                 }
@@ -3535,21 +3800,62 @@ fn test_command(
                                     let reason = prompt_allowlist_reason(
                                         "Interactive approval via dcg test",
                                     );
-                                    let add_result = rule_id.as_ref().map_or_else(
-                                        || allowlist_add_command(command, &reason, layer, None),
-                                        |rule_id| {
-                                            allowlist_add_rule(rule_id, &reason, layer, None, &[])
+                                    let lifetime = prompt_allowlist_lifetime_choice();
+                                    let expires = match lifetime {
+                                        Some(duration) => match duration_to_expires_at(duration) {
+                                            Ok(expires) => Some(expires),
+                                            Err(err) => {
+                                                eprintln!(
+                                                    "Failed to compute temporary expiration: {err}"
+                                                );
+                                                result_line = "Result: BLOCKED".to_string();
+                                                None
+                                            }
                                         },
-                                    );
+                                        None => None,
+                                    };
 
-                                    if let Err(err) = add_result {
-                                        eprintln!("Allowlist update failed: {err}");
-                                        result_line = "Result: BLOCKED".to_string();
-                                    } else {
-                                        result_line = format!(
-                                            "Result: ALLOWED (allowlisted in {})",
-                                            layer.label()
-                                        );
+                                    if result_line != "Result: BLOCKED" {
+                                        match apply_interactive_allowlist_entry(
+                                            command,
+                                            rule_id.as_deref(),
+                                            &reason,
+                                            layer,
+                                            expires.as_deref(),
+                                        ) {
+                                            Ok(applied) => {
+                                                if let Err(err) =
+                                                    log_interactive_allowlist_audit_event(
+                                                        &effective_config,
+                                                        command,
+                                                        &applied,
+                                                    )
+                                                {
+                                                    eprintln!(
+                                                        "Warning: failed to write interactive allowlist audit: {err}"
+                                                    );
+                                                }
+                                                if let Some(duration) = lifetime {
+                                                    let hours = duration.as_secs() / 3600;
+                                                    result_line = format!(
+                                                        "Result: ALLOWED (temporary allowlisted in {} for {} hours; {})",
+                                                        layer.label(),
+                                                        hours,
+                                                        applied.summary
+                                                    );
+                                                } else {
+                                                    result_line = format!(
+                                                        "Result: ALLOWED (allowlisted in {}; {})",
+                                                        layer.label(),
+                                                        applied.summary
+                                                    );
+                                                }
+                                            }
+                                            Err(err) => {
+                                                eprintln!("Allowlist update failed: {err}");
+                                                result_line = "Result: BLOCKED".to_string();
+                                            }
+                                        }
                                     }
                                 }
                                 InteractiveDecision::Block | InteractiveDecision::ShowDetails => {}
@@ -6720,6 +7026,13 @@ fn handle_history_command(
         } => {
             history_export(&db, output, format, outcome, since, until, limit, compress)?;
         }
+        HistoryAction::Interactive {
+            limit,
+            option,
+            json,
+        } => {
+            history_interactive(&db, limit, option, json)?;
+        }
         HistoryAction::Analyze {
             days,
             json,
@@ -6876,6 +7189,61 @@ fn export_to_writer<W: std::io::Write>(
         ExportFormat::Csv => db.export_csv(writer, options)?,
     };
     Ok(count)
+}
+
+fn history_interactive(
+    db: &HistoryDb,
+    limit: usize,
+    option: Option<String>,
+    json: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if limit == 0 {
+        return Err("limit must be at least 1".into());
+    }
+
+    let option_filter = option
+        .as_deref()
+        .map(|raw| {
+            InteractiveAllowlistOptionType::parse(raw).ok_or_else(|| {
+                format!("Invalid option type: {raw} (expected exact, temporary, or path_specific)")
+            })
+        })
+        .transpose()?;
+
+    let entries = db.query_interactive_allowlist_audits(limit, option_filter)?;
+
+    if json {
+        println!("{}", serde_json::to_string_pretty(&entries)?);
+        return Ok(());
+    }
+
+    if entries.is_empty() {
+        println!("No interactive allowlist audit entries found.");
+        return Ok(());
+    }
+
+    println!("Interactive allowlist audit entries (most recent first):");
+    for entry in entries {
+        println!(
+            "- {} [{}] {} -> {}",
+            entry.timestamp.to_rfc3339(),
+            entry.option_type,
+            entry.command,
+            entry.pattern_added
+        );
+        if let Some(detail) = entry.option_detail.as_deref() {
+            println!("    detail: {detail}");
+        }
+        println!("    config: {}", entry.config_file);
+        if let Some(cwd) = entry.cwd.as_deref() {
+            println!("    cwd: {cwd}");
+        }
+        if let Some(user) = entry.user.as_deref() {
+            println!("    user: {user}");
+        }
+    }
+
+    Ok(())
 }
 
 #[allow(clippy::fn_params_excessive_bools, clippy::too_many_lines)]
@@ -9203,9 +9571,17 @@ fn handle_allowlist_command(action: AllowlistAction) -> Result<(), Box<dyn std::
             user,
             expires,
             conditions,
+            paths,
         } => {
             let layer = resolve_layer(project, user);
-            allowlist_add_rule(&rule_id, &reason, layer, expires.as_deref(), &conditions)?;
+            allowlist_add_rule_with_paths(
+                &rule_id,
+                &reason,
+                layer,
+                expires.as_deref(),
+                &conditions,
+                &paths,
+            )?;
         }
         AllowlistAction::AddCommand {
             command,
@@ -9213,9 +9589,20 @@ fn handle_allowlist_command(action: AllowlistAction) -> Result<(), Box<dyn std::
             project,
             user,
             expires,
+            paths,
         } => {
             let layer = resolve_layer(project, user);
-            allowlist_add_command(&command, &reason, layer, expires.as_deref())?;
+            if paths.is_empty() {
+                allowlist_add_command(&command, &reason, layer, expires.as_deref())?;
+            } else {
+                allowlist_add_command_with_paths(
+                    &command,
+                    &reason,
+                    layer,
+                    expires.as_deref(),
+                    &paths,
+                )?;
+            }
         }
         AllowlistAction::List {
             project,
@@ -9799,6 +10186,18 @@ fn allowlist_add_rule(
     expires: Option<&str>,
     conditions: &[String],
 ) -> Result<(), Box<dyn std::error::Error>> {
+    allowlist_add_rule_with_paths(rule_id, reason, layer, expires, conditions, &[])
+}
+
+/// Add a rule to the allowlist with optional path scoping.
+fn allowlist_add_rule_with_paths(
+    rule_id: &str,
+    reason: &str,
+    layer: AllowlistLayer,
+    expires: Option<&str>,
+    conditions: &[String],
+    paths: &[String],
+) -> Result<(), Box<dyn std::error::Error>> {
     use colored::Colorize;
 
     // Validate rule ID format
@@ -9813,6 +10212,11 @@ fn allowlist_add_rule(
     // Validate condition formats
     for cond in conditions {
         crate::allowlist::validate_condition(cond)?;
+    }
+
+    // Validate path glob patterns
+    for path in paths {
+        crate::allowlist::validate_glob_pattern(path)?;
     }
 
     let path = allowlist_path_for_layer(layer);
@@ -9830,7 +10234,11 @@ fn allowlist_add_rule(
     }
 
     // Build entry
-    let entry = build_rule_entry(&parsed_rule, reason, expires, conditions);
+    let entry = if paths.is_empty() {
+        build_rule_entry(&parsed_rule, reason, expires, conditions)
+    } else {
+        build_rule_entry_with_paths(&parsed_rule, reason, expires, conditions, paths)
+    };
     append_entry(&mut doc, entry);
 
     // Write back
@@ -9854,11 +10262,27 @@ fn allowlist_add_command(
     layer: AllowlistLayer,
     expires: Option<&str>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    allowlist_add_command_with_paths(command, reason, layer, expires, &[])
+}
+
+/// Add an exact command to the allowlist with optional path scoping.
+fn allowlist_add_command_with_paths(
+    command: &str,
+    reason: &str,
+    layer: AllowlistLayer,
+    expires: Option<&str>,
+    paths: &[String],
+) -> Result<(), Box<dyn std::error::Error>> {
     use colored::Colorize;
 
     // Validate expiration date format if provided
     if let Some(exp) = expires {
         crate::allowlist::validate_expiration_date(exp)?;
+    }
+
+    // Validate path glob patterns
+    for path in paths {
+        crate::allowlist::validate_glob_pattern(path)?;
     }
 
     let path = allowlist_path_for_layer(layer);
@@ -9875,7 +10299,11 @@ fn allowlist_add_command(
     }
 
     // Build entry
-    let entry = build_command_entry(command, reason, expires);
+    let entry = if paths.is_empty() {
+        build_command_entry(command, reason, expires)
+    } else {
+        build_command_entry_with_paths(command, reason, expires, paths)
+    };
     append_entry(&mut doc, entry);
 
     // Write back
@@ -10230,10 +10658,46 @@ fn write_allowlist(
         );
     }
 
+    // Create a backup before replacing the file so we can recover from write failures.
+    let backup_path = backup_allowlist_file(path)?;
+
     // Atomic rename (on Unix, this is atomic; on Windows, it replaces atomically)
     std::fs::rename(&temp_path, path)?;
 
+    // Validate final file and roll back if needed.
+    let final_content = std::fs::read_to_string(path)?;
+    if let Err(parse_err) = final_content.parse::<toml_edit::DocumentMut>() {
+        if let Some(ref backup_path) = backup_path {
+            std::fs::copy(backup_path, path)?;
+        }
+        return Err(format!(
+            "Final allowlist verification failed after write (rolled back): {parse_err}"
+        )
+        .into());
+    }
+
     Ok(())
+}
+
+fn backup_allowlist_file(
+    path: &std::path::Path,
+) -> Result<Option<std::path::PathBuf>, Box<dyn std::error::Error>> {
+    if !path.exists() {
+        return Ok(None);
+    }
+
+    let filename = path
+        .file_name()
+        .and_then(std::ffi::OsStr::to_str)
+        .unwrap_or("allowlist.toml");
+    let backup_name = format!(
+        "{}.bak.{}",
+        filename,
+        Utc::now().format("%Y%m%dT%H%M%S%.6fZ")
+    );
+    let backup_path = path.with_file_name(backup_name);
+    std::fs::copy(path, &backup_path)?;
+    Ok(Some(backup_path))
 }
 
 /// Check if a rule entry already exists in the document.
@@ -10276,6 +10740,17 @@ fn build_rule_entry(
     expires: Option<&str>,
     conditions: &[String],
 ) -> toml_edit::Table {
+    build_rule_entry_with_paths(rule_id, reason, expires, conditions, &[])
+}
+
+/// Build a new rule entry with optional path scoping.
+fn build_rule_entry_with_paths(
+    rule_id: &RuleId,
+    reason: &str,
+    expires: Option<&str>,
+    conditions: &[String],
+    paths: &[String],
+) -> toml_edit::Table {
     let mut tbl = toml_edit::Table::new();
 
     tbl.insert("rule", toml_edit::value(rule_id.to_string()));
@@ -10301,11 +10776,29 @@ fn build_rule_entry(
         tbl.insert("conditions", toml_edit::Item::Value(cond_tbl.into()));
     }
 
+    if !paths.is_empty() {
+        let mut path_array = toml_edit::Array::new();
+        for path in paths {
+            path_array.push(path.as_str());
+        }
+        tbl.insert("paths", toml_edit::Item::Value(path_array.into()));
+    }
+
     tbl
 }
 
 /// Build a new exact command entry.
 fn build_command_entry(command: &str, reason: &str, expires: Option<&str>) -> toml_edit::Table {
+    build_command_entry_with_paths(command, reason, expires, &[])
+}
+
+/// Build a new exact command entry with optional path scoping.
+fn build_command_entry_with_paths(
+    command: &str,
+    reason: &str,
+    expires: Option<&str>,
+    paths: &[String],
+) -> toml_edit::Table {
     let mut tbl = toml_edit::Table::new();
 
     tbl.insert("exact_command", toml_edit::value(command));
@@ -10319,6 +10812,14 @@ fn build_command_entry(command: &str, reason: &str, expires: Option<&str>) -> to
 
     if let Some(exp) = expires {
         tbl.insert("expires_at", toml_edit::value(exp));
+    }
+
+    if !paths.is_empty() {
+        let mut path_array = toml_edit::Array::new();
+        for path in paths {
+            path_array.push(path.as_str());
+        }
+        tbl.insert("paths", toml_edit::Item::Value(path_array.into()));
     }
 
     tbl
@@ -11589,6 +12090,36 @@ mod tests {
     }
 
     #[test]
+    fn test_cli_parse_allowlist_add_with_paths() {
+        let cli = Cli::parse_from([
+            "dcg",
+            "allowlist",
+            "add",
+            "core.git:reset-hard",
+            "-r",
+            "Scoped override",
+            "--path",
+            "/workspace/project",
+            "--path",
+            "/workspace/project/subdir/**",
+        ]);
+        if let Some(Command::Allowlist {
+            action: AllowlistAction::Add { paths, .. },
+        }) = cli.command
+        {
+            assert_eq!(
+                paths,
+                vec![
+                    "/workspace/project".to_string(),
+                    "/workspace/project/subdir/**".to_string()
+                ]
+            );
+        } else {
+            unreachable!("Expected Allowlist Add command with paths");
+        }
+    }
+
+    #[test]
     fn test_cli_parse_allow_shortcut() {
         let cli = Cli::parse_from([
             "dcg",
@@ -11682,6 +12213,28 @@ mod tests {
     }
 
     #[test]
+    fn test_cli_parse_allowlist_add_command_with_paths() {
+        let cli = Cli::parse_from([
+            "dcg",
+            "allowlist",
+            "add-command",
+            "git push --force origin main",
+            "-r",
+            "Release workflow",
+            "--path",
+            "/workspace/project",
+        ]);
+        if let Some(Command::Allowlist {
+            action: AllowlistAction::AddCommand { paths, .. },
+        }) = cli.command
+        {
+            assert_eq!(paths, vec!["/workspace/project".to_string()]);
+        } else {
+            unreachable!("Expected Allowlist AddCommand command with paths");
+        }
+    }
+
+    #[test]
     fn test_cli_parse_allow_once() {
         let cli = Cli::parse_from([
             "dcg",
@@ -11746,6 +12299,27 @@ mod tests {
     }
 
     #[test]
+    fn test_allowlist_toml_helpers_with_paths() {
+        let rule_id = RuleId::parse("core.git:reset-hard").unwrap();
+        let path_scoped_rule = build_rule_entry_with_paths(
+            &rule_id,
+            "path scoped",
+            None,
+            &[],
+            &["/workspace/project".to_string()],
+        );
+        assert!(path_scoped_rule.get("paths").is_some());
+
+        let path_scoped_command = build_command_entry_with_paths(
+            "git reset --hard HEAD~1",
+            "path scoped command",
+            None,
+            &["/workspace/project/subdir/**".to_string()],
+        );
+        assert!(path_scoped_command.get("paths").is_some());
+    }
+
+    #[test]
     fn test_is_expired() {
         // Past date should be expired
         assert!(is_expired("2020-01-01T00:00:00Z"));
@@ -11781,6 +12355,33 @@ mod tests {
         let content = std::fs::read_to_string(&path).unwrap();
         assert!(content.contains("core.git:reset-hard"));
         assert!(content.contains("reason = \"test\""));
+    }
+
+    #[test]
+    fn write_allowlist_creates_backup_when_overwriting() {
+        use tempfile::TempDir;
+
+        let temp = TempDir::new().unwrap();
+        let path = temp.path().join("allowlist.toml");
+        std::fs::write(
+            &path,
+            "[[allow]]\nrule = \"core.git:reset-hard\"\nreason = \"old\"\n",
+        )
+        .unwrap();
+
+        let mut doc = load_or_create_allowlist_doc(&path).unwrap();
+        let rule = RuleId::parse("core.git:clean-force").unwrap();
+        let entry = build_rule_entry(&rule, "new", None, &[]);
+        append_entry(&mut doc, entry);
+        write_allowlist(&path, &doc).unwrap();
+
+        let backup_count = std::fs::read_dir(temp.path())
+            .unwrap()
+            .filter_map(Result::ok)
+            .map(|entry| entry.file_name().to_string_lossy().into_owned())
+            .filter(|name| name.starts_with("allowlist.toml.bak."))
+            .count();
+        assert_eq!(backup_count, 1, "exactly one backup should be created");
     }
 
     #[test]
@@ -12523,6 +13124,38 @@ exclude = ["target/**"]
                 assert!(json);
             } else {
                 unreachable!("Expected History stats action");
+            }
+        } else {
+            unreachable!("Expected History command");
+        }
+    }
+
+    #[test]
+    fn test_cli_parse_history_interactive() {
+        let cli = Cli::try_parse_from([
+            "dcg",
+            "history",
+            "interactive",
+            "--limit",
+            "25",
+            "--option",
+            "temporary",
+            "--json",
+        ])
+        .expect("parse");
+
+        if let Some(Command::History { action }) = cli.command {
+            if let HistoryAction::Interactive {
+                limit,
+                option,
+                json,
+            } = action
+            {
+                assert_eq!(limit, 25);
+                assert_eq!(option.as_deref(), Some("temporary"));
+                assert!(json);
+            } else {
+                unreachable!("Expected History interactive action");
             }
         } else {
             unreachable!("Expected History command");

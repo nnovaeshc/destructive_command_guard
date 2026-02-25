@@ -575,6 +575,49 @@ maybe_add_path() {
   esac
 }
 
+DCG_SHELL_CHECK_MARKER="# dcg: warn if hook was silently removed"
+
+maybe_add_shell_check() {
+  # Add a shell startup check that warns if the DCG hook has been silently
+  # removed from ~/.claude/settings.json. Silent when present, fast (ms),
+  # and only runs when both dcg and jq are on PATH.
+  local snippet
+  snippet=$(cat <<'EOFSNIPPET'
+
+# dcg: warn if hook was silently removed from Claude Code settings
+if command -v dcg &>/dev/null && command -v jq &>/dev/null; then
+  if [ -f "$HOME/.claude/settings.json" ] && \
+     ! jq -e '.hooks.PreToolUse[]? | select(.hooks[]?.command | test("dcg$"))' \
+       "$HOME/.claude/settings.json" &>/dev/null; then
+    printf '\033[1;33m[dcg] Hook missing from ~/.claude/settings.json — run: dcg install\033[0m\n'
+  fi
+fi
+EOFSNIPPET
+  )
+
+  local added=0
+  for rc in "$HOME/.zshrc" "$HOME/.bashrc"; do
+    if [ -e "$rc" ] && [ -w "$rc" ]; then
+      if grep -qF "$DCG_SHELL_CHECK_MARKER" "$rc" 2>/dev/null; then
+        continue  # Already present
+      fi
+      printf '%s\n' "$snippet" >> "$rc"
+      added=1
+      ok "Added shell startup check to $rc"
+    fi
+  done
+
+  if [ "$added" -eq 0 ]; then
+    # No RC files found or none writable — try to pick one based on shell
+    local target_rc="$HOME/.bashrc"
+    case "${SHELL:-}" in
+      *zsh) target_rc="$HOME/.zshrc" ;;
+    esac
+    printf '%s\n' "$snippet" >> "$target_rc"
+    ok "Added shell startup check to $target_rc"
+  fi
+}
+
 detect_default_shell() {
   local shell="${SHELL:-}"
   [ -z "$shell" ] && return 1
@@ -1936,6 +1979,44 @@ if [ "$NO_CONFIGURE" -eq 0 ]; then
   configure_cursor
 else
   info "Skipping agent configuration (--no-configure)"
+fi
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Shell Startup Check (detect silently removed hook)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+if [ "$NO_CONFIGURE" -eq 0 ]; then
+  # In easy mode or non-interactive, inject automatically; otherwise prompt.
+  if [ "$EASY" -eq 1 ]; then
+    maybe_add_shell_check
+  elif [ -t 0 ] && [ -t 1 ]; then
+    echo ""
+    if [ "$HAS_GUM" -eq 1 ] && [ "$NO_GUM" -eq 0 ]; then
+      gum style --foreground 39 --bold "Shell startup check"
+      gum style --foreground 247 "Claude Code can silently remove the dcg hook when it rewrites settings.json."
+      gum style --foreground 247 "A shell startup check will warn you on every new terminal if the hook goes missing."
+      echo ""
+      if gum confirm "Add shell startup check to your RC files?"; then
+        maybe_add_shell_check
+      else
+        info "Skipped. You can add it later with: dcg setup --shell-check"
+      fi
+    else
+      echo -e "\033[1;36mShell startup check\033[0m"
+      echo "Claude Code can silently remove the dcg hook when it rewrites settings.json."
+      echo "A shell startup check will warn you on every new terminal if the hook goes missing."
+      echo ""
+      printf 'Add shell startup check to your RC files? [Y/n] '
+      read -r REPLY </dev/tty 2>/dev/null || REPLY="y"
+      case "$REPLY" in
+        n|N|no|No|NO) info "Skipped. You can add it later with: dcg setup --shell-check" ;;
+        *) maybe_add_shell_check ;;
+      esac
+    fi
+  else
+    # Non-interactive, non-easy-mode: auto-inject (user ran installer intentionally)
+    maybe_add_shell_check
+  fi
 fi
 
 # ═══════════════════════════════════════════════════════════════════════════════

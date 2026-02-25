@@ -722,6 +722,8 @@ The install script:
 
 > **Note on GitHub Copilot CLI:** Copilot hooks are repository-local (`.github/hooks/*.json`) and loaded from the current working directory. Run the installer from each repository where you want protection so it can create/merge `.github/hooks/dcg.json`.
 
+> **Recommended:** After installing, run `dcg setup` (or re-run the installer) to add a [shell startup check](#hook-silently-removed-recommended-add-shell-startup-check) that warns you if the dcg hook is ever silently removed from `~/.claude/settings.json`.
+
 ### From source (requires Rust nightly)
 
 This project uses Rust Edition 2024 features and requires the nightly toolchain. The repository includes a `rust-toolchain.toml` that automatically selects the correct toolchain.
@@ -2032,6 +2034,39 @@ This hook assumes the AI agent is **well-intentioned but fallible**. It's design
 2. **Restart Claude Code**: Configuration changes require a restart
 3. **Check binary location**: Ensure `dcg` is in your PATH
 4. **Test manually**: Run `echo '{"tool_name":"Bash","tool_input":{"command":"git reset --hard"}}' | dcg`
+
+### Hook silently removed (recommended: add shell startup check)
+
+Claude Code can silently remove the dcg hook when it rewrites `~/.claude/settings.json`. This means you may lose protection without any warning.
+
+**Automatic setup** -- `dcg setup` installs the hook *and* offers to add a shell startup check:
+
+```bash
+dcg setup               # Interactive — prompts before modifying RC files
+dcg setup --shell-check # Non-interactive — adds the check automatically
+```
+
+**Manual setup** -- add this snippet to your `~/.zshrc` and/or `~/.bashrc`:
+
+```bash
+# dcg: warn if hook was silently removed from Claude Code settings
+if command -v dcg &>/dev/null && command -v jq &>/dev/null; then
+  if [ -f "$HOME/.claude/settings.json" ] && \
+     ! jq -e '.hooks.PreToolUse[]? | select(.hooks[]?.command | test("dcg$"))' \
+       "$HOME/.claude/settings.json" &>/dev/null; then
+    printf '\033[1;33m[dcg] Hook missing from ~/.claude/settings.json — run: dcg install\033[0m\n'
+  fi
+fi
+```
+
+This check:
+- Runs in milliseconds (no noticeable shell startup delay)
+- Is completely silent when the hook is present
+- Shows a yellow warning only when the hook is missing
+- Gracefully skips if `dcg`, `jq`, or `settings.json` are absent
+- Works identically in bash and zsh
+
+> **Note:** The `install.sh` installer also offers to add this check during installation.
 
 ### Hook blocking safe commands
 

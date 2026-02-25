@@ -1,4 +1,5 @@
-# Rust build artifacts
+# Rust build artifacts (including symlinks to shared target dirs)
+/target
 /target/
 **/*.rs.bk
 # Note: Cargo.lock is committed for binary crates per Rust best practices
@@ -57,3 +58,20 @@ cov_*.out
 sweep_*.png
 test_screenshot.png
 target-*/
+
+# Runtime SQLite databases
+storage.sqlite3
+storage.sqlite3-*
+*.sqlite3.bak
+
+# Remote compilation helper artifacts
+.rch-target/
+.rch-deploy-root/
+rch-bin/
+rch-install/
+
+# Test artifacts
+hello_write.txt
+
+# Agent mail project identity
+.agent-mail-project-id

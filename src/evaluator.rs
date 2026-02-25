@@ -3781,6 +3781,8 @@ mod tests {
         use super::*;
         use crate::config::{GitAwarenessConfig, StrictnessLevel};
         use crate::packs::Severity;
+        use std::path::Path;
+        use std::process::Command;
 
         fn config_with_git_awareness(enabled: bool) -> Config {
             let mut config = Config::default();
@@ -3807,6 +3809,30 @@ mod tests {
                 skipped_due_to_budget: false,
                 branch_context: None,
             }
+        }
+
+        fn run_git(repo_path: &Path, args: &[&str]) {
+            let output = Command::new("git")
+                .current_dir(repo_path)
+                .args(args)
+                .output()
+                .expect("failed to run git command");
+            assert!(
+                output.status.success(),
+                "git {:?} failed: {}",
+                args,
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+
+        fn init_git_repo(repo_path: &Path, branch: &str) {
+            run_git(repo_path, &["init"]);
+            run_git(
+                repo_path,
+                &["config", "user.email", "dcg-tests@example.com"],
+            );
+            run_git(repo_path, &["config", "user.name", "DCG Tests"]);
+            run_git(repo_path, &["checkout", "-b", branch]);
         }
 
         #[test]
@@ -3990,6 +4016,67 @@ mod tests {
             // Should be settable
             config.git_awareness.warn_if_not_git = true;
             assert!(config.git_awareness.warn_if_not_git);
+        }
+
+        #[test]
+        fn relaxed_branch_can_downgrade_deny_to_allow() {
+            let temp = tempfile::tempdir().expect("tempdir");
+            init_git_repo(temp.path(), "feature/relaxed");
+
+            let mut config = Config::default();
+            config.git_awareness.enabled = true;
+            config.git_awareness.protected_branches = vec!["main".to_string()];
+            config.git_awareness.protected_strictness = StrictnessLevel::All;
+            config.git_awareness.relaxed_branches = vec!["feature/*".to_string()];
+            config.git_awareness.relaxed_strictness = StrictnessLevel::Critical;
+            config.git_awareness.default_strictness = StrictnessLevel::High;
+            config.git_awareness.warn_if_not_git = false;
+
+            let result = create_deny_result_with_severity(Severity::Low);
+            let modified = apply_branch_strictness(result, &config, Some(temp.path()));
+
+            assert_eq!(modified.decision, EvaluationDecision::Allow);
+
+            let branch_context = modified
+                .branch_context
+                .expect("branch context should be populated");
+            assert_eq!(
+                branch_context.branch_name.as_deref(),
+                Some("feature/relaxed")
+            );
+            assert!(!branch_context.is_protected);
+            assert!(branch_context.is_relaxed);
+            assert_eq!(branch_context.strictness, StrictnessLevel::Critical);
+            assert!(branch_context.affected_decision);
+        }
+
+        #[test]
+        fn protected_branch_keeps_deny_for_blocked_severity() {
+            let temp = tempfile::tempdir().expect("tempdir");
+            init_git_repo(temp.path(), "main");
+
+            let mut config = Config::default();
+            config.git_awareness.enabled = true;
+            config.git_awareness.protected_branches = vec!["main".to_string()];
+            config.git_awareness.protected_strictness = StrictnessLevel::All;
+            config.git_awareness.relaxed_branches = vec!["feature/*".to_string()];
+            config.git_awareness.relaxed_strictness = StrictnessLevel::Critical;
+            config.git_awareness.default_strictness = StrictnessLevel::High;
+            config.git_awareness.warn_if_not_git = false;
+
+            let result = create_deny_result_with_severity(Severity::High);
+            let modified = apply_branch_strictness(result, &config, Some(temp.path()));
+
+            assert_eq!(modified.decision, EvaluationDecision::Deny);
+
+            let branch_context = modified
+                .branch_context
+                .expect("branch context should be populated");
+            assert_eq!(branch_context.branch_name.as_deref(), Some("main"));
+            assert!(branch_context.is_protected);
+            assert!(!branch_context.is_relaxed);
+            assert_eq!(branch_context.strictness, StrictnessLevel::All);
+            assert!(!branch_context.affected_decision);
         }
     }
 }

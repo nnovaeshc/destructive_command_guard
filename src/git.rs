@@ -362,6 +362,37 @@ pub fn is_in_git_repo_at_path(path: &std::path::Path) -> bool {
 mod tests {
     use super::*;
     use std::fs;
+    use std::path::Path;
+    use std::process::Command;
+
+    fn run_git(repo_path: &Path, args: &[&str]) {
+        let output = Command::new("git")
+            .current_dir(repo_path)
+            .args(args)
+            .output()
+            .expect("failed to run git command");
+        assert!(
+            output.status.success(),
+            "git {:?} failed: {}",
+            args,
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    fn init_git_repo(repo_path: &Path) {
+        run_git(repo_path, &["init"]);
+        run_git(
+            repo_path,
+            &["config", "user.email", "dcg-tests@example.com"],
+        );
+        run_git(repo_path, &["config", "user.name", "DCG Tests"]);
+    }
+
+    fn create_commit(repo_path: &Path, file_name: &str) {
+        fs::write(repo_path.join(file_name), "test data").expect("write commit fixture file");
+        run_git(repo_path, &["add", file_name]);
+        run_git(repo_path, &["commit", "-m", "test commit"]);
+    }
 
     #[test]
     fn test_branch_info_methods() {
@@ -489,5 +520,36 @@ mod tests {
         // Temp dir might or might not be in a git repo depending on system
         // Just verify it doesn't panic
         drop(result);
+    }
+
+    #[test]
+    fn test_get_branch_info_at_path_detects_named_branch() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        init_git_repo(temp.path());
+        run_git(temp.path(), &["checkout", "-b", "feature/test"]);
+
+        let info = get_branch_info_at_path(temp.path());
+        assert_eq!(info, BranchInfo::Branch("feature/test".to_string()));
+    }
+
+    #[test]
+    fn test_get_branch_info_at_path_detects_detached_head() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        init_git_repo(temp.path());
+        create_commit(temp.path(), "detached.txt");
+        run_git(temp.path(), &["checkout", "--detach"]);
+
+        let info = get_branch_info_at_path(temp.path());
+        assert!(
+            matches!(info, BranchInfo::DetachedHead(_)),
+            "Expected detached HEAD, got {info:?}"
+        );
+    }
+
+    #[test]
+    fn test_get_branch_info_at_path_returns_not_git_repo_for_plain_directory() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let info = get_branch_info_at_path(temp.path());
+        assert_eq!(info, BranchInfo::NotGitRepo);
     }
 }

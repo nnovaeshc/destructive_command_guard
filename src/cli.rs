@@ -2304,11 +2304,11 @@ fn list_packs(
         println!("Available packs:");
         println!();
 
-        // Group by category
-        let mut by_category: std::collections::BTreeMap<&str, Vec<_>> =
+        // Group by category (use pack_list which includes both built-in and external packs)
+        let mut by_category: std::collections::BTreeMap<&str, Vec<&PackInfo>> =
             std::collections::BTreeMap::new();
-        for info in &infos {
-            let category = info.id.split('.').next().unwrap_or(&info.id);
+        for info in &pack_list {
+            let category = info.category.as_str();
             by_category.entry(category).or_default().push(info);
         }
 
@@ -2355,7 +2355,7 @@ fn list_packs_rich(config: &Config, enabled_only: bool, verbose: bool) {
     con.rule(Some("[bold cyan] Available Packs [/]"));
     con.print("");
 
-    // Group by category
+    // Group built-in packs by category
     let mut by_category: std::collections::BTreeMap<&str, Vec<_>> =
         std::collections::BTreeMap::new();
     for info in &infos {
@@ -2363,7 +2363,7 @@ fn list_packs_rich(config: &Config, enabled_only: bool, verbose: bool) {
         by_category.entry(category).or_default().push(info);
     }
 
-    for (category, packs) in by_category {
+    for (category, packs) in &by_category {
         con.print(&format!("[bold]{category}[/]:"));
         for info in packs {
             if enabled_only && !info.enabled {
@@ -2393,6 +2393,32 @@ fn list_packs_rich(config: &Config, enabled_only: bool, verbose: bool) {
             }
         }
         con.print("");
+    }
+
+    // Display external packs from custom_paths
+    if let Some(external_store) = get_external_packs() {
+        let external_packs: Vec<_> = external_store.iter_packs().collect();
+        if !external_packs.is_empty() {
+            con.print("[bold magenta]custom[/]:");
+            for (id, pack) in &external_packs {
+                // External packs loaded via custom_paths are always enabled
+                let (status, color) = ("●", "green");
+                if verbose {
+                    con.print(&format!(
+                        "  [{color}]{status}[/] [bold]{id}[/] - {desc} [dim]({safe} safe, {destr} destructive)[/]",
+                        desc = pack.description,
+                        safe = pack.safe_patterns.len(),
+                        destr = pack.destructive_patterns.len()
+                    ));
+                } else {
+                    con.print(&format!(
+                        "  [{color}]{status}[/] [bold]{id}[/] - {name}",
+                        name = pack.name
+                    ));
+                }
+            }
+            con.print("");
+        }
     }
 
     con.print("[dim]Legend: [green]●[/] = enabled, ○ = disabled[/]");

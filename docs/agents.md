@@ -13,6 +13,7 @@ trust to well-behaved agents while maintaining strict controls for unknown ones.
 | Continue | Environment | `CONTINUE_SESSION_ID` |
 | Codex CLI | Environment | `CODEX_CLI=1` |
 | Gemini CLI | Environment | `GEMINI_CLI=1` |
+| GitHub Copilot CLI | Environment | `COPILOT_CLI=1` or `COPILOT_AGENT_START_TIME_SEC` |
 
 ## Detection Priority
 

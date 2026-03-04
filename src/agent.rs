@@ -766,6 +766,8 @@ mod env_tests {
         unsafe {
             std::env::remove_var("CLAUDE_CODE");
             std::env::remove_var("CLAUDE_SESSION_ID");
+            std::env::remove_var("AUGMENT_AGENT");
+            std::env::remove_var("AUGMENT_CONVERSATION_ID");
             std::env::remove_var("AIDER_SESSION");
             std::env::remove_var("CONTINUE_SESSION_ID");
             std::env::remove_var("CODEX_CLI");

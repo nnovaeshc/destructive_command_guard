@@ -190,6 +190,7 @@ dcg uses a modular "pack" system to organize destructive command patterns by cat
 - `database.mongodb` - Protects against destructive MongoDB operations like dropDatabase, dropCollection, and remove without criteria.
 - `database.redis` - Protects against destructive Redis operations like FLUSHALL, FLUSHDB, and mass key deletion.
 - `database.sqlite` - Protects against destructive SQLite operations like DROP TABLE, DELETE without WHERE, and accidental data loss.
+- `database.supabase` - Protects against destructive Supabase CLI operations including database resets, migration rollbacks, function/secret/storage deletion, project removal, and infrastructure changes.
 
 ### Container Packs
 - `containers.docker` - Protects against destructive Docker operations like system prune, volume prune, and force removal.
@@ -307,6 +308,7 @@ enabled = [
     # Databases
     "database.postgresql",
     "database.redis",
+    "database.supabase",
 
     # Containers and orchestration
     "containers.docker",

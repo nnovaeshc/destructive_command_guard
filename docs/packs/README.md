@@ -102,6 +102,7 @@ enabled = ["kubernetes", "database", "containers"]
 - [`database.mongodb`](database.md#databasemongodb)
 - [`database.redis`](database.md#databaseredis)
 - [`database.sqlite`](database.md#databasesqlite)
+- [`database.supabase`](database.md#databasesupabase)
 - [`containers.docker`](containers.md#containersdocker)
 - [`containers.compose`](containers.md#containerscompose)
 - [`containers.podman`](containers.md#containerspodman)

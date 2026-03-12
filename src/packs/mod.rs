@@ -122,7 +122,7 @@ pub enum DecisionMode {
     #[default]
     Deny,
 
-    /// Warn but allow (print warning to stderr, no JSON deny).
+    /// Warn and prompt (print warning to stderr, emit JSON "ask" decision).
     Warn,
 
     /// Log only (silent allow, record for history).

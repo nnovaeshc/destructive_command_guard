@@ -575,7 +575,14 @@ fn main() {
             }
         }
         DecisionMode::Warn => {
-            hook::output_warning(&command, &info.reason, pack, pattern, explanation);
+            hook::output_warning_for_protocol(
+                hook_protocol,
+                &command,
+                &info.reason,
+                pack,
+                pattern,
+                explanation,
+            );
         }
         DecisionMode::Log => {
             // Silent allow; optionally log to file for history.

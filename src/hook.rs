@@ -835,51 +835,119 @@ pub fn output_denial(
     );
 }
 
-/// Output a warning to stderr (no JSON deny; command is allowed).
+/// Output a warning for a warn-severity match.
+///
+/// Prints a human-readable warning to stderr and emits a hook-protocol JSON
+/// response to stdout with `permissionDecision: "ask"` (Claude Code / Copilot)
+/// or `decision: "ask"` (Gemini).  This makes warn-severity matches visible
+/// to AI coding agents that only read stdout JSON, while still allowing the
+/// user to approve the command interactively.
 #[cold]
 #[inline(never)]
-pub fn output_warning(
+pub fn output_warning_for_protocol(
+    protocol: HookProtocol,
     command: &str,
     reason: &str,
     pack: Option<&str>,
     pattern: Option<&str>,
     explanation: Option<&str>,
 ) {
-    let stderr = io::stderr();
-    let mut handle = stderr.lock();
+    // -- stderr: human-visible warning (unchanged) --
+    {
+        let stderr = io::stderr();
+        let mut handle = stderr.lock();
 
-    let _ = writeln!(handle);
-    let _ = writeln!(
-        handle,
-        "{} {}",
-        "dcg WARNING (allowed by policy):".yellow().bold(),
-        reason
-    );
+        let _ = writeln!(handle);
+        let _ = writeln!(
+            handle,
+            "{} {}",
+            "dcg WARNING:".yellow().bold(),
+            reason
+        );
 
-    // Build rule_id from pack and pattern
+        let rule_id = build_rule_id(pack, pattern);
+        let explanation_text = format_explanation_text(explanation, rule_id.as_deref(), pack);
+        let mut explanation_lines = explanation_text.lines();
+
+        if let Some(first) = explanation_lines.next() {
+            let _ = writeln!(handle, "  {} {}", "Explanation:".bright_black(), first);
+            for line in explanation_lines {
+                let _ = writeln!(handle, "               {line}");
+            }
+        }
+
+        if let Some(ref rule) = rule_id {
+            let _ = writeln!(handle, "  {} {}", "Rule:".bright_black(), rule);
+        } else if let Some(pack_name) = pack {
+            let _ = writeln!(handle, "  {} {}", "Pack:".bright_black(), pack_name);
+        }
+
+        let _ = writeln!(handle, "  {} {}", "Command:".bright_black(), command);
+    }
+
+    // -- stdout: hook-protocol JSON with "ask" decision --
     let rule_id = build_rule_id(pack, pattern);
-    let explanation_text = format_explanation_text(explanation, rule_id.as_deref(), pack);
-    let mut explanation_lines = explanation_text.lines();
+    let warn_reason = format!("DCG warn: {reason}");
 
-    if let Some(first) = explanation_lines.next() {
-        let _ = writeln!(handle, "  {} {}", "Explanation:".bright_black(), first);
-        for line in explanation_lines {
-            let _ = writeln!(handle, "               {line}");
+    let stdout = io::stdout();
+    let mut handle = stdout.lock();
+
+    match protocol {
+        HookProtocol::ClaudeCompatible => {
+            let output = HookOutput {
+                hook_specific_output: HookSpecificOutput {
+                    hook_event_name: "PreToolUse",
+                    permission_decision: "ask",
+                    permission_decision_reason: Cow::Owned(warn_reason),
+                    allow_once_code: None,
+                    allow_once_full_hash: None,
+                    rule_id,
+                    pack_id: pack.map(String::from),
+                    severity: None,
+                    confidence: None,
+                    remediation: None,
+                },
+            };
+
+            let _ = serde_json::to_writer(&mut handle, &output);
+            let _ = writeln!(handle);
+        }
+        HookProtocol::Copilot => {
+            let output = CopilotHookOutput {
+                continue_execution: false,
+                stop_reason: Cow::Owned(format!("DCG warn: {reason}")),
+                permission_decision: "ask",
+                permission_decision_reason: Cow::Owned(warn_reason),
+                allow_once_code: None,
+                allow_once_full_hash: None,
+                rule_id,
+                pack_id: pack.map(String::from),
+                severity: None,
+                confidence: None,
+                remediation: None,
+            };
+
+            let _ = serde_json::to_writer(&mut handle, &output);
+            let _ = writeln!(handle);
+        }
+        HookProtocol::Gemini => {
+            let output = GeminiHookOutput {
+                decision: "ask",
+                reason: Cow::Owned(warn_reason.clone()),
+                system_message: Some(Cow::Owned(warn_reason)),
+                allow_once_code: None,
+                allow_once_full_hash: None,
+                rule_id,
+                pack_id: pack.map(String::from),
+                severity: None,
+                confidence: None,
+                remediation: None,
+            };
+
+            let _ = serde_json::to_writer(&mut handle, &output);
+            let _ = writeln!(handle);
         }
     }
-
-    if let Some(ref rule) = rule_id {
-        let _ = writeln!(handle, "  {} {}", "Rule:".bright_black(), rule);
-    } else if let Some(pack_name) = pack {
-        let _ = writeln!(handle, "  {} {}", "Pack:".bright_black(), pack_name);
-    }
-
-    let _ = writeln!(handle, "  {} {}", "Command:".bright_black(), command);
-    let _ = writeln!(
-        handle,
-        "  {}",
-        "No hook JSON deny was emitted; this warning is informational.".bright_black()
-    );
 }
 
 /// Log a blocked command to a file (if logging is enabled).
@@ -1155,6 +1223,75 @@ mod tests {
         assert!(message.contains("Explanation: This is irreversible."));
         assert!(message.contains("Rule: core.git:reset-hard"));
         assert!(message.contains("Tip: dcg explain"));
+    }
+
+    #[test]
+    fn test_claude_compatible_warn_ask_json_shape() {
+        let output = HookOutput {
+            hook_specific_output: HookSpecificOutput {
+                hook_event_name: "PreToolUse",
+                permission_decision: "ask",
+                permission_decision_reason: Cow::Borrowed("DCG warn: risky pattern"),
+                allow_once_code: None,
+                allow_once_full_hash: None,
+                rule_id: Some("core.git:checkout-dot".to_string()),
+                pack_id: Some("core.git".to_string()),
+                severity: None,
+                confidence: None,
+                remediation: None,
+            },
+        };
+        let json = serde_json::to_value(&output).unwrap();
+        let specific = &json["hookSpecificOutput"];
+        assert_eq!(specific["hookEventName"], "PreToolUse");
+        assert_eq!(specific["permissionDecision"], "ask");
+        assert!(
+            specific["permissionDecisionReason"]
+                .as_str()
+                .unwrap()
+                .starts_with("DCG warn:")
+        );
+        assert_eq!(specific["ruleId"], "core.git:checkout-dot");
+        assert_eq!(specific["packId"], "core.git");
+    }
+
+    #[test]
+    fn test_copilot_warn_ask_json_shape() {
+        let output = CopilotHookOutput {
+            continue_execution: false,
+            stop_reason: Cow::Borrowed("DCG warn: risky pattern"),
+            permission_decision: "ask",
+            permission_decision_reason: Cow::Borrowed("DCG warn: risky pattern"),
+            allow_once_code: None,
+            allow_once_full_hash: None,
+            rule_id: None,
+            pack_id: None,
+            severity: None,
+            confidence: None,
+            remediation: None,
+        };
+        let json = serde_json::to_value(&output).unwrap();
+        assert_eq!(json["permissionDecision"], "ask");
+        assert_eq!(json["continue"], false);
+    }
+
+    #[test]
+    fn test_gemini_warn_ask_json_shape() {
+        let output = GeminiHookOutput {
+            decision: "ask",
+            reason: Cow::Borrowed("DCG warn: risky pattern"),
+            system_message: Some(Cow::Borrowed("DCG warn: risky pattern")),
+            allow_once_code: None,
+            allow_once_full_hash: None,
+            rule_id: None,
+            pack_id: None,
+            severity: None,
+            confidence: None,
+            remediation: None,
+        };
+        let json = serde_json::to_value(&output).unwrap();
+        assert_eq!(json["decision"], "ask");
+        assert!(json["reason"].as_str().unwrap().starts_with("DCG warn:"));
     }
 
     #[test]

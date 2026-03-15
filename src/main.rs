@@ -254,6 +254,13 @@ fn main() {
         return;
     }
 
+    // Self-heal: verify the DCG hook is still registered in settings.json.
+    // Claude Code can silently overwrite settings.json mid-session, removing the hook.
+    // This re-registers it automatically (fail-open: errors are logged, never fatal).
+    if config.general.self_heal_hook {
+        cli::ensure_hook_registered();
+    }
+
     // Compile overrides once (precompiled regexes, no per-command compilation)
     let compiled_overrides = config.overrides.compile();
 

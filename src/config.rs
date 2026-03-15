@@ -126,6 +126,7 @@ struct GeneralConfigLayer {
     log_file: Option<String>,
     verbose: Option<bool>,
     check_updates: Option<bool>,
+    self_heal_hook: Option<bool>,
     hook_timeout_ms: Option<u64>,
     max_hook_input_bytes: Option<usize>,
     max_command_bytes: Option<usize>,
@@ -806,6 +807,14 @@ pub struct GeneralConfig {
     /// Default: true. Disable with `DCG_NO_UPDATE_CHECK` (any non-empty value)
     /// or `check_updates` = false.
     pub check_updates: bool,
+
+    /// Whether to self-heal the hook registration in settings.json.
+    /// When enabled, every hook invocation checks that the dcg entry is still
+    /// present in `~/.claude/settings.json` and re-registers it if missing.
+    /// This protects against Claude Code silently overwriting settings.json
+    /// mid-session.
+    /// Default: true. Disable with `DCG_NO_SELF_HEAL` or `self_heal_hook = false`.
+    pub self_heal_hook: bool,
 }
 
 /// Default limits for input size (used when not configured).
@@ -824,6 +833,7 @@ impl Default for GeneralConfig {
             max_command_bytes: None,
             max_findings_per_command: None,
             check_updates: true,
+            self_heal_hook: true,
         }
     }
 }
@@ -2643,6 +2653,9 @@ impl Config {
         if let Some(check_updates) = general.check_updates {
             self.general.check_updates = check_updates;
         }
+        if let Some(self_heal_hook) = general.self_heal_hook {
+            self.general.self_heal_hook = self_heal_hook;
+        }
     }
 
     const fn merge_output_layer(&mut self, output: OutputConfigLayer) {
@@ -2896,6 +2909,20 @@ impl Config {
         if let Some(disable) = get_env("DCG_NO_UPDATE_CHECK") {
             if !disable.trim().is_empty() {
                 self.general.check_updates = false;
+            }
+        }
+
+        // DCG_SELF_HEAL_HOOK=true|false|1|0
+        if let Some(self_heal) = get_env(&format!("{ENV_PREFIX}_SELF_HEAL_HOOK")) {
+            if let Some(parsed) = parse_env_bool(&self_heal) {
+                self.general.self_heal_hook = parsed;
+            }
+        }
+
+        // DCG_NO_SELF_HEAL=1 (override)
+        if let Some(disable) = get_env("DCG_NO_SELF_HEAL") {
+            if !disable.trim().is_empty() {
+                self.general.self_heal_hook = false;
             }
         }
 
@@ -3238,6 +3265,10 @@ verbose = false
 
 # Check for updates in the background (shows a notice if available)
 # check_updates = true
+
+# Self-heal hook registration in settings.json on every invocation.
+# Protects against Claude Code overwriting settings.json mid-session.
+# self_heal_hook = true
 
 # Hook evaluation budget override (milliseconds)
 # hook_timeout_ms = 200

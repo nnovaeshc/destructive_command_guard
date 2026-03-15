@@ -9455,6 +9455,69 @@ fn check_hook_registered() -> Result<bool, Box<dyn std::error::Error>> {
     Ok(registered)
 }
 
+/// Ensure the DCG hook is registered in `~/.claude/settings.json`.
+///
+/// This is the self-healing mechanism that protects against Claude Code
+/// silently overwriting `settings.json` mid-session (removing the DCG hook).
+///
+/// Called on every hook invocation when `general.self_heal_hook` is enabled.
+/// If the hook entry is missing, it is silently re-registered and a warning
+/// is emitted to stderr.
+///
+/// Design constraints:
+/// - **Fail-open**: any error (IO, JSON parse, etc.) is swallowed — never
+///   block command evaluation because of a self-heal failure.
+/// - **Fast path**: if the hook is present, this is just a file read + JSON
+///   parse + array scan (typically < 1ms).
+/// - **Idempotent**: safe to call on every invocation.
+pub fn ensure_hook_registered() {
+    if let Err(e) = ensure_hook_registered_inner() {
+        // Fail-open: log warning but never block the hook pipeline.
+        eprintln!("[dcg] Warning: self-heal check failed: {e}");
+    }
+}
+
+/// Inner implementation for `ensure_hook_registered` that returns errors
+/// so the outer function can swallow them for fail-open behavior.
+fn ensure_hook_registered_inner() -> Result<(), Box<dyn std::error::Error>> {
+    let settings_path = claude_settings_path();
+    if !settings_path.exists() {
+        // No settings.json at all — nothing to heal. The user hasn't run
+        // `dcg install` yet, or Claude Code hasn't been configured.
+        return Ok(());
+    }
+
+    let content = std::fs::read_to_string(&settings_path)?;
+    let mut settings: serde_json::Value = serde_json::from_str(&content)?;
+
+    let is_registered = settings
+        .get("hooks")
+        .and_then(|h| h.get("PreToolUse"))
+        .and_then(|arr| arr.as_array())
+        .is_some_and(|a| a.iter().any(is_dcg_hook_entry));
+
+    if is_registered {
+        // Fast path: hook is present, nothing to do.
+        return Ok(());
+    }
+
+    // Hook was removed — re-register it.
+    let changed = install_dcg_hook_into_settings(&mut settings, false)?;
+    if changed {
+        let new_content = serde_json::to_string_pretty(&settings)?;
+        std::fs::write(&settings_path, new_content)?;
+        eprintln!(
+            "[dcg] \x1b[1;33mWarning: DCG hook was missing from {} — re-registered automatically.\x1b[0m",
+            settings_path.display()
+        );
+        eprintln!(
+            "[dcg] \x1b[1;33mThis usually means Claude Code overwrote settings.json mid-session.\x1b[0m"
+        );
+    }
+
+    Ok(())
+}
+
 // ============================================================================
 // Doctor: expanded diagnostics (git_safety_guard-1gt.7.1)
 // NOTE: These diagnostic types are scaffolding for future `dcg doctor` enhancements.
@@ -14543,5 +14606,82 @@ exclude = ["target/**"]
             true,
             true,
         ));
+    }
+
+    // ========================================================================
+    // Self-heal hook registration tests
+    // ========================================================================
+
+    #[test]
+    fn self_heal_reregisters_missing_hook() {
+        // Create a temporary settings.json WITHOUT the dcg hook
+        let dir = tempfile::tempdir().unwrap();
+        let settings_path = dir.path().join("settings.json");
+        let settings = serde_json::json!({
+            "hooks": {
+                "PreToolUse": []
+            }
+        });
+        std::fs::write(&settings_path, serde_json::to_string_pretty(&settings).unwrap()).unwrap();
+
+        // Read it back, install the hook, and write
+        let content = std::fs::read_to_string(&settings_path).unwrap();
+        let mut settings: serde_json::Value = serde_json::from_str(&content).unwrap();
+
+        let is_registered = settings
+            .get("hooks")
+            .and_then(|h| h.get("PreToolUse"))
+            .and_then(|arr| arr.as_array())
+            .is_some_and(|a| a.iter().any(is_dcg_hook_entry));
+        assert!(!is_registered, "hook should not be registered yet");
+
+        let changed = install_dcg_hook_into_settings(&mut settings, false).unwrap();
+        assert!(changed, "should have installed the hook");
+
+        let is_registered = settings
+            .get("hooks")
+            .and_then(|h| h.get("PreToolUse"))
+            .and_then(|arr| arr.as_array())
+            .is_some_and(|a| a.iter().any(is_dcg_hook_entry));
+        assert!(is_registered, "hook should be registered after install");
+    }
+
+    #[test]
+    fn self_heal_noop_when_hook_present() {
+        let mut settings = serde_json::json!({
+            "hooks": {
+                "PreToolUse": [{
+                    "matcher": "Bash",
+                    "hooks": [{"type": "command", "command": "dcg"}]
+                }]
+            }
+        });
+
+        let changed = install_dcg_hook_into_settings(&mut settings, false).unwrap();
+        assert!(!changed, "should not modify when hook is already present");
+    }
+
+    #[test]
+    fn self_heal_handles_overwritten_settings() {
+        // Simulate Claude Code overwriting settings.json with no hooks at all
+        let mut settings = serde_json::json!({
+            "permissions": {
+                "allow": ["Bash(*)"]
+            }
+        });
+
+        let changed = install_dcg_hook_into_settings(&mut settings, false).unwrap();
+        assert!(changed, "should install hook into settings with no hooks key");
+
+        // Verify the structure was created correctly
+        let is_registered = settings
+            .get("hooks")
+            .and_then(|h| h.get("PreToolUse"))
+            .and_then(|arr| arr.as_array())
+            .is_some_and(|a| a.iter().any(is_dcg_hook_entry));
+        assert!(is_registered, "hook should be registered after self-heal");
+
+        // Verify existing keys were preserved
+        assert!(settings.get("permissions").is_some(), "existing keys should be preserved");
     }
 }

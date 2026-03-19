@@ -131,7 +131,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // rm -f (force remove containers)
         destructive_pattern!(
             "rm-force",
-            r"podman\s+rm\s+.*-f|podman\s+rm\s+.*--force",
+            r"podman\s+rm\s+.*(?:-[a-zA-Z0-9]*f|--force)",
             "podman rm -f forcibly removes containers, potentially losing data.",
             High,
             "podman rm -f forcibly stops and removes containers. This is dangerous because:\n\n\
@@ -147,7 +147,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // rmi -f (force remove images)
         destructive_pattern!(
             "rmi-force",
-            r"podman\s+rmi\s+.*-f|podman\s+rmi\s+.*--force",
+            r"podman\s+rmi\s+.*(?:-[a-zA-Z0-9]*f|--force)",
             "podman rmi -f forcibly removes images even if in use.",
             High,
             "podman rmi -f forcibly removes images, even if containers reference them. \
@@ -178,4 +178,32 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
              - Back up before removal"
         ),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::packs::test_helpers::*;
+
+    #[test]
+    fn test_rm_force() {
+        let pack = create_pack();
+        assert_blocks(&pack, "podman rm -f container", "forcibly removes");
+        assert_blocks(&pack, "podman rm --force container", "forcibly removes");
+        assert_blocks(&pack, "podman rm -af", "forcibly removes"); // Combined flags (all + force)
+        assert_blocks(&pack, "podman rm -vf container", "forcibly removes"); // Combined flags
+        assert_blocks(&pack, "podman rm -fv container", "forcibly removes");
+
+        assert_allows(&pack, "podman rm container");
+    }
+
+    #[test]
+    fn test_rmi_force() {
+        let pack = create_pack();
+        assert_blocks(&pack, "podman rmi -f image", "forcibly removes");
+        assert_blocks(&pack, "podman rmi --force image", "forcibly removes");
+        assert_blocks(&pack, "podman rmi -nf image", "forcibly removes"); // Combined flags
+
+        assert_allows(&pack, "podman rmi image");
+    }
 }

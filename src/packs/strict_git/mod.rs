@@ -5,6 +5,8 @@
 //! - Block rebase operations
 //! - Block amending commits that have been pushed
 //! - Block git filter-branch and other history rewriting
+//! - Block `git add .` / `git add -A` (stage everything blindly)
+//! - Block direct pushes to main/master (should use PRs)
 
 use crate::packs::{DestructivePattern, Pack, SafePattern};
 use crate::{destructive_pattern, safe_pattern};
@@ -15,8 +17,8 @@ pub fn create_pack() -> Pack {
     Pack {
         id: "strict_git".to_string(),
         name: "Strict Git",
-        description: "Stricter git protections: blocks all force pushes, rebases, and \
-                      history rewriting operations",
+        description: "Stricter git protections: blocks force pushes, rebases, history \
+                      rewriting, blind staging, and direct pushes to default branches",
         keywords: &["git"],
         safe_patterns: create_safe_patterns(),
         destructive_patterns: create_destructive_patterns(),
@@ -106,11 +108,29 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
             r"git\s+submodule\s+deinit",
             "git submodule deinit removes submodule configuration."
         ),
+        // Block git add . (stages everything, may include secrets, .env, build artifacts)
+        destructive_pattern!(
+            "add-all-dot",
+            r"git\s+add\s+\.\s*$",
+            "git add . stages everything including secrets, .env files, and build artifacts. Use 'git add <specific-files>' instead."
+        ),
+        // Block git add -A / git add --all (same concern as git add .)
+        destructive_pattern!(
+            "add-all-flag",
+            r"git\s+add\s+(?:-A|--all)\b",
+            "git add -A/--all stages all changes including secrets, .env files, and build artifacts. Use 'git add <specific-files>' instead."
+        ),
         // Block push to master
         destructive_pattern!(
             "push-master",
             r"git\s+(?:\S+\s+)*push\s+(?:.*[\s:])?master(?:\s|$)",
-            "Direct push to master is blocked. Use a Pull Request."
+            "Direct push to master is blocked. Use a feature branch and open a Pull Request."
+        ),
+        // Block push to main
+        destructive_pattern!(
+            "push-main",
+            r"git\s+(?:\S+\s+)*push\s+(?:.*[\s:])?main(?:\s|$)",
+            "Direct push to main is blocked. Use a feature branch and open a Pull Request."
         ),
     ]
 }
@@ -119,6 +139,25 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
 mod tests {
     use super::*;
     use crate::packs::test_helpers::*;
+
+    #[test]
+    fn test_add_all_dot() {
+        let pack = create_pack();
+        assert_blocks(&pack, "git add .", "stages everything");
+        // Should not match when adding specific dotfiles or paths starting with .
+        assert_allows(&pack, "git add .gitignore");
+        assert_allows(&pack, "git add ./src/main.rs");
+    }
+
+    #[test]
+    fn test_add_all_flag() {
+        let pack = create_pack();
+        assert_blocks(&pack, "git add -A", "stages all changes");
+        assert_blocks(&pack, "git add --all", "stages all changes");
+        // Should not match unrelated flags
+        assert_allows(&pack, "git add -p");
+        assert_allows(&pack, "git add --patch");
+    }
 
     #[test]
     fn test_push_master() {
@@ -134,9 +173,40 @@ mod tests {
             "git push origin HEAD:master",
             "Direct push to master is blocked",
         );
+        assert_blocks(
+            &pack,
+            "git push origin master:master",
+            "Direct push to master is blocked",
+        );
 
         // These should be allowed (unless blocked by other rules)
         assert_allows(&pack, "git push origin feature-master");
         assert_allows(&pack, "git push origin master-fix");
+    }
+
+    #[test]
+    fn test_push_main() {
+        let pack = create_pack();
+        assert_blocks(
+            &pack,
+            "git push origin main",
+            "Direct push to main is blocked",
+        );
+        assert_blocks(&pack, "git push main", "Direct push to main is blocked");
+        assert_blocks(
+            &pack,
+            "git push origin HEAD:main",
+            "Direct push to main is blocked",
+        );
+        assert_blocks(
+            &pack,
+            "git push origin main:main",
+            "Direct push to main is blocked",
+        );
+
+        // These should be allowed (unless blocked by other rules)
+        assert_allows(&pack, "git push origin feature-main");
+        assert_allows(&pack, "git push origin main-fix");
+        assert_allows(&pack, "git push origin maintain");
     }
 }

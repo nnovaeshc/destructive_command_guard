@@ -313,6 +313,17 @@ pub fn read_hook_input(max_bytes: usize) -> Result<HookInput, HookReadError> {
 }
 
 /// Detect which hook protocol should be used for output formatting.
+///
+/// # Protocol Disambiguation
+///
+/// Claude Code and Gemini payloads share several fields (`session_id`,
+/// `transcript_path`, `cwd`) which makes naive field-presence checks
+/// ambiguous. We disambiguate by checking Claude Code-specific indicators
+/// **first** (tool name `"Bash"`, hook event `"PreToolUse"`, and
+/// `CLAUDE_CODE` env var), then Gemini-specific markers (tool name
+/// `"run_shell_command"` with hook event `"BeforeTool"`).
+///
+/// See: <https://github.com/Dicklesworthstone/destructive_command_guard/issues/77>
 #[must_use]
 pub fn detect_protocol(input: &HookInput) -> HookProtocol {
     let tool_name = input
@@ -321,31 +332,78 @@ pub fn detect_protocol(input: &HookInput) -> HookProtocol {
         .map(str::to_ascii_lowercase)
         .unwrap_or_default();
     let hook_event_name = input.hook_event_name.as_deref().unwrap_or_default();
-    let has_gemini_context = input.session_id.is_some()
+
+    // --- Copilot indicators (checked first) ---
+    // Copilot sends a distinctive `event` field (e.g. "pre-tool-use") that
+    // neither Claude Code nor Gemini use. The `tool_args` field is also
+    // Copilot-specific. Check these before tool-name-based heuristics
+    // because Copilot can use tool_name="bash" (which overlaps with
+    // Claude Code's tool names).
+    if input.event.is_some() || input.tool_args.is_some() {
+        return HookProtocol::Copilot;
+    }
+
+    // --- Claude Code indicators ---
+    // Claude Code uses tool_name="Bash" or "launch-process". These tool
+    // names are never used by Gemini (which uses "run_shell_command").
+    // Check this BEFORE Gemini envelope fields, because Claude Code
+    // payloads also include session_id/cwd/transcript_path which would
+    // otherwise trigger a false Gemini classification (issue #77).
+    let is_claude_tool = matches!(tool_name.as_str(), "bash" | "launch-process");
+    if is_claude_tool {
+        return HookProtocol::ClaudeCompatible;
+    }
+
+    // The CLAUDE_CODE env var provides a strong secondary signal when the
+    // tool name is ambiguous or absent.
+    let is_claude_event = hook_event_name.is_empty()
+        || hook_event_name.eq_ignore_ascii_case("pretooluse");
+    let has_claude_env =
+        std::env::var_os("CLAUDE_CODE").is_some()
+            || std::env::var_os("CLAUDE_SESSION_ID").is_some();
+    if has_claude_env && is_claude_event {
+        return HookProtocol::ClaudeCompatible;
+    }
+
+    // --- Gemini indicators ---
+    // Gemini uses tool_name="run_shell_command" and hook_event_name="BeforeTool".
+    // It also sends envelope fields (session_id, transcript_path, cwd, timestamp)
+    // but those alone are NOT sufficient since Claude Code also sends them.
+    let is_gemini_tool = matches!(
+        tool_name.as_str(),
+        "run_shell_command" | "run-shell-command"
+    );
+    let is_gemini_event = hook_event_name.eq_ignore_ascii_case("beforetool");
+    let has_gemini_envelope = input.session_id.is_some()
         || input.transcript_path.is_some()
         || input.cwd.is_some()
         || input.timestamp.is_some();
-    let has_gemini_before_tool_marker = hook_event_name.eq_ignore_ascii_case("beforetool")
-        && matches!(
-            tool_name.as_str(),
-            "run_shell_command" | "run-shell-command"
-        );
 
-    // Gemini hooks usually include session envelope fields, but some integrations
-    // only provide the event marker + tool payload.
-    if has_gemini_context || has_gemini_before_tool_marker {
-        HookProtocol::Gemini
-    } else if input.event.is_some()
-        || input.tool_args.is_some()
-        || matches!(
-            tool_name.as_str(),
-            "run_shell_command" | "run-shell-command"
-        )
-    {
-        HookProtocol::Copilot
-    } else {
-        HookProtocol::ClaudeCompatible
+    // Strong Gemini signal: BeforeTool event with run_shell_command tool.
+    if is_gemini_event && is_gemini_tool {
+        return HookProtocol::Gemini;
     }
+
+    // Weaker Gemini signal: envelope fields present AND Gemini-specific
+    // event name (but possibly a different tool name).
+    if is_gemini_event && has_gemini_envelope {
+        return HookProtocol::Gemini;
+    }
+
+    // Envelope fields alone with a Gemini tool name (some integrations
+    // omit hook_event_name).
+    if has_gemini_envelope && is_gemini_tool {
+        return HookProtocol::Gemini;
+    }
+
+    // Bare run_shell_command without Gemini context -- treat as Copilot
+    // (some Copilot integrations use this tool name without `event`).
+    if is_gemini_tool {
+        return HookProtocol::Copilot;
+    }
+
+    // --- Default: Claude Code compatible (safest default) ---
+    HookProtocol::ClaudeCompatible
 }
 
 fn is_supported_shell_tool(tool_name: Option<&str>) -> bool {
@@ -1307,5 +1365,146 @@ mod tests {
         }
 
         assert!(std::env::var(key).is_err());
+    }
+
+    // =========================================================================
+    // Regression tests for issue #77: Claude Code payloads with session_id/cwd
+    // being misclassified as Gemini protocol.
+    // =========================================================================
+
+    #[test]
+    fn test_claude_code_with_session_fields_not_gemini_issue_77() {
+        // This is the exact scenario from issue #77: Claude Code sends
+        // tool_name="Bash" along with session_id, cwd, and transcript_path.
+        // Before the fix, has_gemini_context was true and this was
+        // misclassified as Gemini, causing DCG to emit {"decision":"deny",...}
+        // instead of {"hookSpecificOutput":{"permissionDecision":"deny",...}}.
+        let json = r#"{
+            "session_id": "sess-abc123",
+            "transcript_path": "/tmp/claude/transcript.json",
+            "cwd": "/home/user/project",
+            "tool_name": "Bash",
+            "tool_input": {"command": "git reset --hard HEAD~1"}
+        }"#;
+        let input: HookInput = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            detect_protocol(&input),
+            HookProtocol::ClaudeCompatible,
+            "Claude Code payload with session_id/cwd must NOT be classified as Gemini"
+        );
+        assert_eq!(
+            extract_command(&input),
+            Some("git reset --hard HEAD~1".to_string())
+        );
+    }
+
+    #[test]
+    fn test_claude_code_full_payload_with_all_shared_fields() {
+        // Claude Code payload with ALL fields that overlap with Gemini.
+        let json = r#"{
+            "session_id": "sess-xyz",
+            "transcript_path": "/tmp/transcript",
+            "cwd": "/data/projects",
+            "timestamp": "2026-03-20T00:00:00Z",
+            "tool_name": "Bash",
+            "tool_input": {"command": "rm -rf /tmp/build"}
+        }"#;
+        let input: HookInput = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            detect_protocol(&input),
+            HookProtocol::ClaudeCompatible,
+            "tool_name=Bash is a definitive Claude Code indicator regardless of envelope fields"
+        );
+    }
+
+    #[test]
+    fn test_claude_code_with_cwd_only() {
+        // Minimal Claude Code payload with just cwd (common case).
+        let json = r#"{
+            "cwd": "/home/user/project",
+            "tool_name": "Bash",
+            "tool_input": {"command": "ls"}
+        }"#;
+        let input: HookInput = serde_json::from_str(json).unwrap();
+        assert_eq!(detect_protocol(&input), HookProtocol::ClaudeCompatible);
+    }
+
+    #[test]
+    fn test_claude_code_launch_process_with_session_fields() {
+        // launch-process is also a Claude Code tool name.
+        let json = r#"{
+            "session_id": "sess-abc",
+            "cwd": "/tmp",
+            "tool_name": "launch-process",
+            "tool_input": {"command": "git status"}
+        }"#;
+        let input: HookInput = serde_json::from_str(json).unwrap();
+        assert_eq!(detect_protocol(&input), HookProtocol::ClaudeCompatible);
+    }
+
+    #[test]
+    fn test_gemini_not_affected_by_fix() {
+        // Verify genuine Gemini payloads still work correctly.
+        let json = r#"{
+            "session_id": "gemini-session",
+            "transcript_path": "/tmp/gemini/transcript",
+            "cwd": "/home/user",
+            "hook_event_name": "BeforeTool",
+            "timestamp": "2026-03-20T00:00:00Z",
+            "tool_name": "run_shell_command",
+            "tool_input": {"command": "git reset --hard"}
+        }"#;
+        let input: HookInput = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            detect_protocol(&input),
+            HookProtocol::Gemini,
+            "Genuine Gemini payloads must still be classified as Gemini"
+        );
+    }
+
+    #[test]
+    fn test_copilot_with_event_field_takes_priority() {
+        // Copilot sends `event` field which is unique to it.
+        // Even with session_id present, event takes priority.
+        let json = r#"{
+            "event": "pre-tool-use",
+            "session_id": "some-session",
+            "cwd": "/tmp",
+            "tool_name": "bash",
+            "tool_args": "{\"command\":\"git status\"}"
+        }"#;
+        let input: HookInput = serde_json::from_str(json).unwrap();
+        assert_eq!(
+            detect_protocol(&input),
+            HookProtocol::Copilot,
+            "Copilot event field must take priority over shared envelope fields"
+        );
+    }
+
+    #[test]
+    fn test_bare_run_shell_command_without_context_is_copilot() {
+        // run_shell_command without any Gemini context or event field.
+        let json = r#"{
+            "tool_name": "run_shell_command",
+            "tool_input": {"command": "git status"}
+        }"#;
+        let input: HookInput = serde_json::from_str(json).unwrap();
+        assert_eq!(detect_protocol(&input), HookProtocol::Copilot);
+    }
+
+    #[test]
+    fn test_minimal_bash_payload_is_claude_compatible() {
+        // Minimal payload with just tool_name=Bash.
+        let json = r#"{"tool_name":"Bash","tool_input":{"command":"echo hello"}}"#;
+        let input: HookInput = serde_json::from_str(json).unwrap();
+        assert_eq!(detect_protocol(&input), HookProtocol::ClaudeCompatible);
+    }
+
+    #[test]
+    fn test_empty_payload_defaults_to_claude_compatible() {
+        // Empty/minimal payload should default to Claude Compatible (safest).
+        let json = r#"{}"#;
+        let input: HookInput = serde_json::from_str(json).unwrap();
+        assert_eq!(detect_protocol(&input), HookProtocol::ClaudeCompatible);
     }
 }

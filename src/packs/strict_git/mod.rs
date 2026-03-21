@@ -9,7 +9,7 @@
 //! - Block direct pushes to main/master (should use PRs)
 
 use crate::packs::{DestructivePattern, Pack, SafePattern};
-use crate::{destructive_pattern, safe_pattern};
+use crate::destructive_pattern;
 
 /// Create the strict git pack.
 #[must_use]
@@ -29,21 +29,13 @@ pub fn create_pack() -> Pack {
 }
 
 fn create_safe_patterns() -> Vec<SafePattern> {
-    vec![
-        // Interactive rebase is allowed (you can still abort)
-        // Actually no, let's be strict about this too
-        // Read-only commands are always safe
-        safe_pattern!("git-status", r"git\s+status"),
-        safe_pattern!("git-log", r"git\s+log"),
-        safe_pattern!("git-diff", r"git\s+diff"),
-        safe_pattern!("git-show", r"git\s+show"),
-        safe_pattern!(
-            "git-branch-list",
-            r"git\s+branch\s*$\|git\s+branch\s+-[alv]"
-        ),
-        safe_pattern!("git-remote-v", r"git\s+remote\s+-v"),
-        safe_pattern!("git-fetch", r"git\s+fetch"),
-    ]
+    // No safe patterns needed: none of the destructive patterns in this pack
+    // match read-only commands (git status, git log, etc.).  Previously broad
+    // safe patterns like `git\s+status` were defined here, but they created a
+    // bypass vector: a compound command such as `git add . ; git status` would
+    // be whitelisted because the `git status` suffix matched the safe pattern,
+    // hiding the destructive `git add .` prefix.
+    vec![]
 }
 
 fn create_destructive_patterns() -> Vec<DestructivePattern> {

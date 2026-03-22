@@ -1253,6 +1253,30 @@ pub fn normalize_command_word_token(token: &str) -> Option<String> {
         }
     }
 
+    // Shell redirections may be attached directly to the command word
+    // (`"git">/dev/null`, `git.exe>/tmp/log`). Insert a space before the
+    // first redirection operator so downstream matching sees the command word
+    // and the redirection as separate shell tokens. Numeric file-descriptor
+    // redirects like `2>/dev/null` are left alone.
+    if let Some(redirection_idx) = attached_redirection_index(&out) {
+        let head = &out[..redirection_idx];
+        let tail = &out[redirection_idx..];
+        let is_fd_redirect = head.chars().all(|c| c.is_ascii_digit());
+
+        if !is_fd_redirect {
+            let mut normalized_head = head.to_string();
+            if normalized_head.to_ascii_lowercase().ends_with(".exe") && normalized_head.len() > 4 {
+                normalized_head.truncate(normalized_head.len() - 4);
+            }
+
+            let candidate = format!("{normalized_head} {tail}");
+            if candidate != out {
+                out = candidate;
+                changed = true;
+            }
+        }
+    }
+
     // Strip Windows .exe extension from command words (e.g., git.exe -> git)
     if out.to_ascii_lowercase().ends_with(".exe") && out.len() > 4 {
         out.truncate(out.len() - 4);
@@ -1305,6 +1329,42 @@ pub fn normalize_command_word_token(token: &str) -> Option<String> {
     }
 
     if changed { Some(out) } else { None }
+}
+
+fn attached_redirection_index(token: &str) -> Option<usize> {
+    let bytes = token.as_bytes();
+    let mut in_single = false;
+    let mut in_double = false;
+    let mut escaped = false;
+
+    for (idx, byte) in bytes.iter().copied().enumerate() {
+        if escaped {
+            escaped = false;
+            continue;
+        }
+
+        if byte == b'\\' && !in_single {
+            escaped = true;
+            continue;
+        }
+
+        match byte {
+            b'\'' if !in_double => {
+                in_single = !in_single;
+            }
+            b'"' if !in_single => {
+                in_double = !in_double;
+            }
+            b'>' | b'<' if !in_single && !in_double => {
+                if idx > 0 && !bytes[idx - 1].is_ascii_whitespace() {
+                    return Some(idx);
+                }
+            }
+            _ => {}
+        }
+    }
+
+    None
 }
 
 #[inline]
@@ -2021,4 +2081,30 @@ fn test_mixed_quoting_normalization() {
         "git reset --hard",
         "g'i't command should normalize"
     );
+}
+
+#[test]
+fn test_attached_redirection_normalization_after_quoted_command() {
+    assert_eq!(
+        normalize_command_word_token(r#""git">/dev/null"#),
+        Some("git >/dev/null".to_string())
+    );
+
+    assert_eq!(
+        normalize_command(r#""git">/dev/null reset --hard"#).as_ref(),
+        "git >/dev/null reset --hard"
+    );
+}
+
+#[test]
+fn test_attached_redirection_normalization_strips_exe_suffix() {
+    assert_eq!(
+        normalize_command_word_token(r#""git.exe">/dev/null"#),
+        Some("git >/dev/null".to_string())
+    );
+}
+
+#[test]
+fn test_numeric_fd_redirection_is_not_rewritten() {
+    assert_eq!(normalize_command_word_token("2>/dev/null"), None);
 }

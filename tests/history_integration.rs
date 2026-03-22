@@ -155,11 +155,11 @@ fn test_fts_on_seeded_data() {
     let test_db = TestDb::with_standard_mix();
 
     // Search for git commands
-    let git_count: i64 = test_db
+    let git_count = test_db
         .db
         .connection()
-        .query_row("SELECT COUNT(*) FROM commands_fts WHERE command LIKE '%git%'")
-        .map(|row| sv_to_i64(&row.values()[0]))
+        .query("SELECT rowid FROM commands_fts WHERE command LIKE '%git%'")
+        .map(|rows| rows.len())
         .unwrap();
 
     assert!(git_count > 0, "Should find git commands via FTS");

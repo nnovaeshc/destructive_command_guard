@@ -18,15 +18,6 @@ fn sv_to_string(v: &SqliteValue) -> String {
     }
 }
 
-fn sv_to_i64(v: &SqliteValue) -> i64 {
-    match v {
-        SqliteValue::Integer(i) => *i,
-        SqliteValue::Float(f) => *f as i64,
-        SqliteValue::Text(s) => s.parse().unwrap_or(0),
-        _ => 0,
-    }
-}
-
 #[test]
 fn test_full_history_pipeline() {
     init_test_logging();
@@ -62,11 +53,11 @@ fn test_full_history_pipeline() {
     assert_eq!(stored_command, "git status");
     assert_eq!(stored_outcome, "allow");
 
-    let fts_count: i64 = test_db
+    let fts_count = test_db
         .db
         .connection()
-        .query_row("SELECT COUNT(*) FROM commands_fts WHERE command LIKE '%git%'")
-        .map(|row| sv_to_i64(&row.values()[0]))
+        .query("SELECT rowid FROM commands_fts WHERE command LIKE '%git%'")
+        .map(|rows| rows.len())
         .expect("fts query");
     assert_eq!(fts_count, 1);
 }

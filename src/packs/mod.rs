@@ -2034,6 +2034,11 @@ fn span_matches_any_keyword(span_text: &str, enabled_keywords: &[&str]) -> bool 
         .any(|keyword| keyword_matches_span(span_text, keyword))
 }
 
+#[inline]
+fn should_fallback_to_full_normalized_keyword_scan(original: &str, normalized: &str) -> bool {
+    original != normalized && normalized.bytes().any(|byte| matches!(byte, b'>' | b'<'))
+}
+
 /// Pack-aware quick-reject filter.
 ///
 /// Returns true if the command can be safely skipped (contains none of the
@@ -2131,7 +2136,23 @@ pub fn pack_aware_quick_reject_with_normalized<'a>(
     }
 
     if !saw_executable {
+        if should_fallback_to_full_normalized_keyword_scan(cmd, cmd_for_spans)
+            && span_matches_any_keyword(cmd_for_spans, enabled_keywords)
+        {
+            return (false, normalized);
+        }
         return (true, normalized);
+    }
+
+    // Attached shell redirections can stay glued to the command word after
+    // normalization, which is enough to defeat the executable-span keyword
+    // gate. Fall back to the normalized full command only for that narrow
+    // class of shell-syntax rewrites; broader fallbacks create false positives
+    // on safe variable/data contexts.
+    if should_fallback_to_full_normalized_keyword_scan(cmd, cmd_for_spans)
+        && span_matches_any_keyword(cmd_for_spans, enabled_keywords)
+    {
+        return (false, normalized);
     }
 
     (true, normalized) // No keywords found in executable spans, safe to skip pack checking
@@ -2178,6 +2199,26 @@ mod tests {
         assert!(
             !pack_aware_quick_reject("/usr/bin/git status", &keywords),
             "absolute path to git should still prevent quick-reject"
+        );
+    }
+
+    #[test]
+    fn pack_aware_quick_reject_does_not_skip_attached_redirection_bypass() {
+        let keywords: Vec<&str> = vec!["git"];
+
+        assert!(
+            !pack_aware_quick_reject(r#""git">/dev/null reset --hard"#, &keywords),
+            "quoted command words with attached redirections must still trigger pack evaluation"
+        );
+    }
+
+    #[test]
+    fn pack_aware_quick_reject_keeps_variable_assignment_data_fast_path() {
+        let keywords: Vec<&str> = vec!["rm"];
+
+        assert!(
+            pack_aware_quick_reject(r#"VAR='rm -rf /'; echo "$VAR""#, &keywords),
+            "safe variable assignments should not lose the quick-reject fast path"
         );
     }
 

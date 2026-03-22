@@ -73,10 +73,7 @@ fn test_audit_backtracking_requirements() {
             "containers.compose",
             HashSet::from(["compose-down-no-volumes"]),
         ),
-        (
-            "database.mysql",
-            HashSet::from(["mysqldump-no-drop"]),
-        ),
+        ("database.mysql", HashSet::from(["mysqldump-no-drop"])),
         ("dns.generic", HashSet::from(["dns-dig-safe"])),
         ("database.mongodb", HashSet::from(["mongodump-no-drop"])),
         ("database.postgresql", HashSet::from(["pg-dump-no-clean"])),

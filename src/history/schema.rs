@@ -1705,11 +1705,7 @@ impl HistoryDb {
         self.conn.execute_with_params(
             "INSERT INTO stats_cache (key, value, updated_at) VALUES (?1, ?2, ?3)
              ON CONFLICT(key) DO UPDATE SET value = ?2, updated_at = ?3",
-            &[
-                text_sv(key),
-                SqliteValue::Integer(value),
-                text_sv(now),
-            ],
+            &[text_sv(key), SqliteValue::Integer(value), text_sv(now)],
         )?;
         Ok(())
     }
@@ -1756,9 +1752,10 @@ impl HistoryDb {
         let cmd_row = self.conn.query_row("SELECT COUNT(*) FROM commands")?;
         let commands_count = u64::try_from(sv_to_i64(&cmd_row.values()[0])).unwrap_or(0);
 
-        // FTS count
-        let fts_row = self.conn.query_row("SELECT COUNT(*) FROM commands_fts")?;
-        let fts_count = u64::try_from(sv_to_i64(&fts_row.values()[0])).unwrap_or(0);
+        // FrankenSQLite's FTS5 fallback does not reliably collapse COUNT(*)
+        // over virtual tables to a single aggregate row, so count by scanning.
+        let fts_count = u64::try_from(self.conn.query("SELECT rowid FROM commands_fts")?.len())
+            .unwrap_or(u64::MAX);
 
         // Journal mode
         let jm_row = self.conn.query_row("PRAGMA journal_mode")?;
@@ -1813,70 +1810,36 @@ impl HistoryDb {
     ///
     /// Returns an error if the rebuild fails.
     pub fn rebuild_fts(&self) -> Result<u64, HistoryError> {
-        // Use a transaction to ensure atomicity - if anything fails, we roll back
-        // to the previous state rather than leaving the database in an inconsistent state
-        self.conn.execute("BEGIN IMMEDIATE;")?;
+        // FrankenSQLite currently rejects recreating a live VTAB with the same
+        // name while the DROP is still staged inside a transaction. Clear and
+        // repopulate the existing FTS table instead of dropping/recreating it.
+        self.conn
+            .execute("DROP TRIGGER IF EXISTS commands_fts_insert")?;
+        self.conn
+            .execute("DROP TRIGGER IF EXISTS commands_fts_delete")?;
+        self.conn
+            .execute("DROP TRIGGER IF EXISTS commands_fts_update")?;
 
-        let result = (|| -> Result<u64, HistoryError> {
-            // First, drop triggers to prevent interference during rebuild
-            self.conn
-                .execute("DROP TRIGGER IF EXISTS commands_fts_insert")?;
-            self.conn
-                .execute("DROP TRIGGER IF EXISTS commands_fts_delete")?;
-            self.conn
-                .execute("DROP TRIGGER IF EXISTS commands_fts_update")?;
+        self.conn.execute("DELETE FROM commands_fts")?;
 
-            // Drop and recreate the FTS table
-            self.conn.execute("DROP TABLE IF EXISTS commands_fts")?;
-
-            self.conn.execute(
-                r"CREATE VIRTUAL TABLE commands_fts USING fts5(
-                    command,
-                    content='commands',
-                    content_rowid='id'
-                )",
+        // fsqlite FTS5 does not support the control-column rebuild syntax, so
+        // repopulate the index row-by-row.
+        let rows = self.conn.query("SELECT id, command FROM commands")?;
+        for row in &rows {
+            let vals = row.values();
+            self.conn.execute_with_params(
+                "INSERT INTO commands_fts(rowid, command) VALUES (?1, ?2)",
+                &[vals[0].clone(), vals[1].clone()],
             )?;
-
-            // Manually rebuild FTS by inserting all existing commands.
-            // fsqlite FTS5 does not support the control column syntax
-            // INSERT INTO fts(fts) VALUES('rebuild'), so we do it explicitly.
-            // We iterate row-by-row because fsqlite's planner does not recognise
-            // the implicit `rowid` pseudo-column in INSERT ... SELECT for virtual
-            // tables, whereas the VALUES path (used by the trigger and here) works
-            // because the VDBE codegen skips column-name validation for VALUES.
-            let rows = self.conn.query("SELECT id, command FROM commands")?;
-            for row in &rows {
-                let vals = row.values();
-                self.conn.execute_with_params(
-                    "INSERT INTO commands_fts(rowid, command) VALUES (?1, ?2)",
-                    &[vals[0].clone(), vals[1].clone()],
-                )?;
-            }
-
-            // Get the count of re-indexed entries
-            let fts_row = self.conn.query_row("SELECT COUNT(*) FROM commands_fts")?;
-            let fts_count = sv_to_i64(&fts_row.values()[0]);
-
-            // Recreate INSERT trigger only (fsqlite FTS5 does not support 'delete' control command)
-            self.conn.execute(
-                r"CREATE TRIGGER commands_fts_insert AFTER INSERT ON commands BEGIN
-                    INSERT INTO commands_fts(rowid, command) VALUES (new.id, new.command);
-                END",
-            )?;
-
-            Ok(u64::try_from(fts_count).unwrap_or(0))
-        })();
-
-        match result {
-            Ok(count) => {
-                self.conn.execute("COMMIT;")?;
-                Ok(count)
-            }
-            Err(e) => {
-                let _ = self.conn.execute("ROLLBACK;");
-                Err(e)
-            }
         }
+
+        self.conn.execute(
+            r"CREATE TRIGGER commands_fts_insert AFTER INSERT ON commands BEGIN
+                INSERT INTO commands_fts(rowid, command) VALUES (new.id, new.command);
+            END",
+        )?;
+
+        Ok(u64::try_from(self.conn.query("SELECT rowid FROM commands_fts")?.len()).unwrap_or(0))
     }
 
     /// Check and optionally repair database health issues.
@@ -2254,10 +2217,7 @@ impl HistoryDb {
         end_ts: &str,
     ) -> Result<Vec<PatternEffectiveness>, HistoryError> {
         let mut patterns = Vec::new();
-        let ts_params = &[
-            text_sv(since_ts.to_string()),
-            text_sv(end_ts.to_string()),
-        ];
+        let ts_params = &[text_sv(since_ts.to_string()), text_sv(end_ts.to_string())];
 
         // Get deny counts per pattern
         let mut deny_counts: HashMap<(String, Option<String>), u64> = HashMap::new();
@@ -2378,10 +2338,7 @@ impl HistoryDb {
             "SELECT DISTINCT pack_id FROM commands
              WHERE timestamp >= ?1 AND timestamp < ?2
              AND pack_id IS NOT NULL",
-            &[
-                text_sv(since_ts.to_string()),
-                text_sv(end_ts.to_string()),
-            ],
+            &[text_sv(since_ts.to_string()), text_sv(end_ts.to_string())],
         ))?;
         let mut packs = Vec::new();
         for row in &rows {
@@ -2417,10 +2374,7 @@ impl HistoryDb {
              AND outcome = 'allow'
              ORDER BY timestamp DESC
              LIMIT 1000",
-            &[
-                text_sv(since_ts.to_string()),
-                text_sv(end_ts.to_string()),
-            ],
+            &[text_sv(since_ts.to_string()), text_sv(end_ts.to_string())],
         ))?;
 
         for row in &rows {
@@ -2584,10 +2538,7 @@ impl HistoryDb {
              GROUP BY rule_id
              ORDER BY total_hits DESC
              LIMIT ?2",
-            &[
-                text_sv(since_ts.clone()),
-                SqliteValue::Integer(limit_i64),
-            ],
+            &[text_sv(since_ts.clone()), SqliteValue::Integer(limit_i64)],
         ))?;
         // Bypass counts per rule
         let bypass_rows = self.conn.query(&inline_params(
@@ -4226,10 +4177,10 @@ mod tests {
 
         // Search for git commands using LIKE (fsqlite's FTS5 MATCH operator does
         // not correctly handle aggregation in the fallback execution path).
-        let count: i64 = db
+        let count = db
             .conn
-            .query_row("SELECT COUNT(*) FROM commands_fts WHERE command LIKE '%git%'")
-            .map(|row| sv_to_i64(&row.values()[0]))
+            .query("SELECT rowid FROM commands_fts WHERE command LIKE '%git%'")
+            .map(|rows| rows.len())
             .unwrap();
 
         assert_eq!(count, 2);

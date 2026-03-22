@@ -137,9 +137,14 @@ fn test_large_dataset_insertion() {
     init_test_logging();
 
     let commands = fixtures::large_dataset(1000);
-    let test_db = TestDb::with_seed_data(&commands);
+    let test_db = TestDb::in_memory();
+    let now = Utc::now();
+    for cmd in &commands {
+        let entry = cmd.to_entry(now);
+        test_db.log_command(&entry).unwrap();
+    }
 
-    assert_eq!(test_db.db.count_commands().unwrap(), 1000);
+    assert_eq!(test_db.count_commands().unwrap(), 1000);
 }
 
 /// Test: FTS search works on seeded data

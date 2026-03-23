@@ -6,7 +6,6 @@
 
 <div align="center">
 
-[![CI](https://github.com/Dicklesworthstone/destructive_command_guard/actions/workflows/ci.yml/badge.svg)](https://github.com/Dicklesworthstone/destructive_command_guard/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/codecov/c/github/Dicklesworthstone/destructive_command_guard?label=coverage)](https://codecov.io/gh/Dicklesworthstone/destructive_command_guard)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 

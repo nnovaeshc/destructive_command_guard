@@ -329,11 +329,15 @@ fn main() {
     };
 
     // Start evaluation deadline after input size checks (includes evaluation).
+    // Enforce a minimum timeout to prevent bypass via `hook_timeout_ms = 0`
+    // which would cause deadline_exceeded() to immediately allow all commands.
     let deadline = Deadline::new(
         config
             .general
             .hook_timeout_ms
-            .map_or(HOOK_EVALUATION_BUDGET, Duration::from_millis),
+            .map_or(HOOK_EVALUATION_BUDGET, |ms| {
+                Duration::from_millis(ms.max(destructive_command_guard::perf::MIN_HOOK_TIMEOUT_MS))
+            }),
     );
 
     let Some((command, hook_protocol)) = hook::extract_command_with_protocol(&hook_input) else {

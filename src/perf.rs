@@ -307,6 +307,17 @@ pub const SLOW_PATH_BUDGET_MS: u64 = 200;
 /// Absolute maximum before fail-open (for documentation and config).
 pub const FAIL_OPEN_THRESHOLD_MS: u64 = 200;
 
+/// Minimum hook evaluation timeout in milliseconds.
+///
+/// Prevents bypass via `hook_timeout_ms = 0` (or any absurdly small value)
+/// in config or `DCG_HOOK_TIMEOUT_MS=0` env var. A zero or near-zero timeout
+/// would cause `deadline_exceeded()` to immediately return true, allowing every
+/// command through without any safety checks.
+///
+/// 10ms is enough for the fast path (quick-reject + safe pattern matching)
+/// while being well below the default 200ms budget.
+pub const MIN_HOOK_TIMEOUT_MS: u64 = 10;
+
 #[cfg(test)]
 mod tests {
     use super::*;

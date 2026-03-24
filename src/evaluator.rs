@@ -1011,7 +1011,7 @@ pub fn evaluate_command(
 
 #[inline]
 fn deadline_exceeded(deadline: Option<&Deadline>) -> bool {
-    deadline.is_some_and(|d| d.max_duration().is_zero() || d.is_exceeded())
+    deadline.is_some_and(Deadline::is_exceeded)
 }
 
 #[inline]

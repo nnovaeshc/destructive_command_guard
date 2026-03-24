@@ -388,6 +388,18 @@ pub enum Command {
         /// Overwrite existing file
         #[arg(long)]
         force: bool,
+
+        /// Auto-detect packs from project files in the current directory
+        #[arg(long)]
+        auto: bool,
+
+        /// Preview what --auto would enable without writing anything
+        #[arg(long)]
+        dry_run: bool,
+
+        /// Directory to scan for project files (defaults to current directory)
+        #[arg(long)]
+        project_dir: Option<String>,
     },
 
     /// Show current configuration
@@ -1861,8 +1873,30 @@ pub fn run_command(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
-        Some(Command::Init { output, force }) => {
-            init_config(output, force)?;
+        Some(Command::Init {
+            output,
+            force,
+            auto,
+            dry_run,
+            project_dir,
+        }) => {
+            if dry_run || auto {
+                let scan_dir = project_dir
+                    .as_deref()
+                    .map(std::path::PathBuf::from)
+                    .unwrap_or_else(|| std::env::current_dir().unwrap_or_default());
+                let detections = detect_project_packs(&scan_dir);
+
+                if dry_run {
+                    print_auto_detect_results(&detections, &scan_dir, true);
+                } else {
+                    print_auto_detect_results(&detections, &scan_dir, false);
+                    let packs: Vec<String> = detections.iter().map(|d| d.pack_id.clone()).collect();
+                    init_config_with_packs(output, force, &packs)?;
+                }
+            } else {
+                init_config(output, force)?;
+            }
         }
         Some(Command::ShowConfig) => {
             if !verbosity.quiet {
@@ -4060,6 +4094,340 @@ fn init_config(output: Option<String>, force: bool) -> Result<(), Box<dyn std::e
     }
 
     Ok(())
+}
+
+/// A single project file detection that maps to a pack.
+struct PackDetection {
+    /// The pack ID to enable (e.g., "containers.docker").
+    pack_id: String,
+    /// What project file triggered this detection.
+    evidence: String,
+}
+
+/// Scan a directory for project files and return the packs that should be enabled.
+fn detect_project_packs(dir: &std::path::Path) -> Vec<PackDetection> {
+    let mut detections: Vec<PackDetection> = Vec::new();
+    let mut seen_packs = std::collections::HashSet::new();
+
+    /// Add a detection if not already seen.
+    fn add_detection(
+        pack_id: &str,
+        evidence: &str,
+        seen: &mut std::collections::HashSet<String>,
+        out: &mut Vec<PackDetection>,
+    ) {
+        if seen.insert(pack_id.to_string()) {
+            out.push(PackDetection {
+                pack_id: pack_id.to_string(),
+                evidence: evidence.to_string(),
+            });
+        }
+    }
+
+    // --- Container detection ---
+    if dir.join("Dockerfile").exists() || dir.join("dockerfile").exists() {
+        add_detection("containers.docker", "Dockerfile", &mut seen_packs, &mut detections);
+    }
+    // Check for Dockerfile.* variants
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if name.starts_with("Dockerfile.") || name.starts_with("dockerfile.") {
+                add_detection("containers.docker", &format!("{name}"), &mut seen_packs, &mut detections);
+            }
+        }
+    }
+    if dir.join("docker-compose.yml").exists() || dir.join("docker-compose.yaml").exists() {
+        add_detection("containers.compose", "docker-compose.yml", &mut seen_packs, &mut detections);
+        add_detection("containers.docker", "docker-compose.yml (implies Docker)", &mut seen_packs, &mut detections);
+    }
+    if dir.join("compose.yml").exists() || dir.join("compose.yaml").exists() {
+        add_detection("containers.compose", "compose.yml", &mut seen_packs, &mut detections);
+        add_detection("containers.docker", "compose.yml (implies Docker)", &mut seen_packs, &mut detections);
+    }
+    if dir.join("Containerfile").exists() {
+        add_detection("containers.podman", "Containerfile", &mut seen_packs, &mut detections);
+    }
+
+    // --- Infrastructure as Code ---
+    if dir.join("terraform").is_dir()
+        || dir.join(".terraform").is_dir()
+        || dir.join("main.tf").exists()
+        || dir.join("terraform.tfvars").exists()
+    {
+        add_detection("infrastructure.terraform", "Terraform files (*.tf)", &mut seen_packs, &mut detections);
+    }
+    // Check for any .tf files in the root
+    if let Ok(entries) = std::fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if name.ends_with(".tf") {
+                add_detection("infrastructure.terraform", &format!("{name}"), &mut seen_packs, &mut detections);
+                break;
+            }
+        }
+    }
+    if dir.join("Pulumi.yaml").exists() || dir.join("Pulumi.yml").exists() {
+        add_detection("infrastructure.pulumi", "Pulumi.yaml", &mut seen_packs, &mut detections);
+    }
+    if dir.join("ansible.cfg").exists()
+        || dir.join("playbook.yml").exists()
+        || dir.join("playbooks").is_dir()
+        || dir.join("roles").is_dir()
+    {
+        add_detection("infrastructure.ansible", "Ansible config/playbooks", &mut seen_packs, &mut detections);
+    }
+
+    // --- CI/CD ---
+    if dir.join(".github").join("workflows").is_dir() {
+        add_detection("cicd.github_actions", ".github/workflows/", &mut seen_packs, &mut detections);
+    }
+    if dir.join(".gitlab-ci.yml").exists() {
+        add_detection("cicd.gitlab_ci", ".gitlab-ci.yml", &mut seen_packs, &mut detections);
+    }
+    if dir.join("Jenkinsfile").exists() {
+        add_detection("cicd.jenkins", "Jenkinsfile", &mut seen_packs, &mut detections);
+    }
+    if dir.join(".circleci").is_dir() {
+        add_detection("cicd.circleci", ".circleci/", &mut seen_packs, &mut detections);
+    }
+
+    // --- Kubernetes ---
+    if dir.join("k8s").is_dir() || dir.join("kubernetes").is_dir() {
+        add_detection("kubernetes.kubectl", "k8s/ or kubernetes/ directory", &mut seen_packs, &mut detections);
+    }
+    if dir.join("Chart.yaml").exists() || dir.join("charts").is_dir() {
+        add_detection("kubernetes.helm", "Chart.yaml or charts/", &mut seen_packs, &mut detections);
+        add_detection("kubernetes.kubectl", "Helm chart (implies kubectl)", &mut seen_packs, &mut detections);
+    }
+    if dir.join("kustomization.yaml").exists() || dir.join("kustomization.yml").exists() {
+        add_detection("kubernetes.kustomize", "kustomization.yaml", &mut seen_packs, &mut detections);
+        add_detection("kubernetes.kubectl", "Kustomize (implies kubectl)", &mut seen_packs, &mut detections);
+    }
+
+    // --- Cloud providers ---
+    if dir.join(".aws").is_dir()
+        || dir.join("serverless.yml").exists()
+        || dir.join("serverless.yaml").exists()
+        || dir.join("sam-template.yaml").exists()
+        || (dir.join("template.yaml").exists() && dir.join("samconfig.toml").exists())
+    {
+        add_detection("cloud.aws", ".aws/ or serverless config", &mut seen_packs, &mut detections);
+    }
+    if dir.join("cloudbuild.yaml").exists()
+        || dir.join("cloudbuild.yml").exists()
+        || (dir.join("app.yaml").exists() && dir.join(".gcloudignore").exists())
+    {
+        add_detection("cloud.gcp", "Google Cloud config", &mut seen_packs, &mut detections);
+    }
+    if dir.join("azure-pipelines.yml").exists() || dir.join(".azure").is_dir() {
+        add_detection("cloud.azure", "Azure config", &mut seen_packs, &mut detections);
+    }
+
+    // --- Database detection from dependency files ---
+    detect_database_packs_from_deps(dir, &mut seen_packs, &mut detections);
+
+    // --- Package managers ---
+    if dir.join("package.json").exists()
+        || dir.join("Cargo.toml").exists()
+        || dir.join("Gemfile").exists()
+        || dir.join("requirements.txt").exists()
+        || dir.join("pyproject.toml").exists()
+        || dir.join("go.mod").exists()
+        || dir.join("composer.json").exists()
+    {
+        add_detection("package_managers", "Package manifest detected", &mut seen_packs, &mut detections);
+    }
+
+    // --- Secrets managers ---
+    if dir.join(".vault").is_dir() || dir.join("vault.hcl").exists() {
+        add_detection("secrets.vault", "Vault configuration", &mut seen_packs, &mut detections);
+    }
+    if dir.join(".op").is_dir() {
+        add_detection("secrets.onepassword", ".op/ directory", &mut seen_packs, &mut detections);
+    }
+
+    detections
+}
+
+/// Scan dependency files for database driver references and add appropriate pack detections.
+fn detect_database_packs_from_deps(
+    dir: &std::path::Path,
+    seen_packs: &mut std::collections::HashSet<String>,
+    detections: &mut Vec<PackDetection>,
+) {
+    // Database driver keywords mapped to pack IDs
+    let db_patterns: &[(&str, &[&str])] = &[
+        ("database.postgresql", &["pg", "postgres", "postgresql", "psycopg", "asyncpg", "diesel", "sqlx", "tokio-postgres", "libpq"]),
+        ("database.mysql", &["mysql", "mysql2", "mysqlclient", "pymysql", "mariadb"]),
+        ("database.mongodb", &["mongoose", "mongodb", "mongoid", "pymongo", "motor"]),
+        ("database.redis", &["redis", "ioredis", "redis-py", "predis", "hiredis"]),
+        ("database.sqlite", &["sqlite", "sqlite3", "better-sqlite3", "rusqlite", "frankensqlite"]),
+        ("database.supabase", &["supabase", "@supabase/supabase-js"]),
+    ];
+
+    // Scan multiple dependency files
+    let dep_files: &[&str] = &[
+        "package.json",
+        "requirements.txt",
+        "Pipfile",
+        "pyproject.toml",
+        "Gemfile",
+        "Cargo.toml",
+        "go.mod",
+        "composer.json",
+        "go.sum",
+    ];
+
+    for dep_file in dep_files {
+        let path = dir.join(dep_file);
+        if !path.exists() {
+            continue;
+        }
+        // Read the file content (limit to 256KB to avoid huge lockfiles)
+        let content = match std::fs::read_to_string(&path) {
+            Ok(c) if c.len() <= 256 * 1024 => c,
+            _ => continue,
+        };
+        let content_lower = content.to_lowercase();
+
+        for &(pack_id, keywords) in db_patterns {
+            for &kw in keywords {
+                if content_lower.contains(kw) {
+                    if seen_packs.insert(pack_id.to_string()) {
+                        detections.push(PackDetection {
+                            pack_id: pack_id.to_string(),
+                            evidence: format!("{dep_file} contains \"{kw}\""),
+                        });
+                    }
+                    break;
+                }
+            }
+        }
+    }
+}
+
+/// Print the results of auto-detection.
+fn print_auto_detect_results(
+    detections: &[PackDetection],
+    scan_dir: &std::path::Path,
+    dry_run: bool,
+) {
+    use colored::Colorize;
+
+    if dry_run {
+        println!(
+            "{} Scanning {} for project files...",
+            "[dry-run]".yellow().bold(),
+            scan_dir.display()
+        );
+    } else {
+        println!(
+            "Scanning {} for project files...",
+            scan_dir.display()
+        );
+    }
+    println!();
+
+    if detections.is_empty() {
+        println!("No project-specific files detected.");
+        println!("Using default packs: core.filesystem, core.git");
+        return;
+    }
+
+    println!("{}", "Detected packs:".bold());
+    for d in detections {
+        println!(
+            "  {} {} {}",
+            "+".green().bold(),
+            d.pack_id.green(),
+            format!("({})", d.evidence).dimmed()
+        );
+    }
+    println!();
+
+    // Always-on packs
+    println!(
+        "{}",
+        "Always enabled: core.filesystem, core.git".dimmed()
+    );
+    println!();
+
+    if dry_run {
+        println!(
+            "{}",
+            "Run 'dcg init --auto' to write this configuration.".yellow()
+        );
+    }
+}
+
+/// Generate a configuration file with specific packs enabled.
+fn init_config_with_packs(
+    output: Option<String>,
+    force: bool,
+    packs: &[String],
+) -> Result<(), Box<dyn std::error::Error>> {
+    let config = generate_config_with_packs(packs);
+
+    let path_str = output.unwrap_or_else(|| {
+        config_path().to_string_lossy().into_owned()
+    });
+    let path = std::path::Path::new(&path_str);
+
+    if path.exists() && !force {
+        return Err(
+            format!("File exists: {}. Use --force to overwrite.", path.display()).into(),
+        );
+    }
+
+    // Create parent directories if needed
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    std::fs::write(path, config)?;
+    println!("Configuration written to: {}", path.display());
+
+    Ok(())
+}
+
+/// Generate a TOML configuration string with the given packs enabled.
+fn generate_config_with_packs(packs: &[String]) -> String {
+    // Start with the sample config but replace the packs section
+    let mut lines = Vec::new();
+    lines.push("# dcg configuration".to_string());
+    lines.push("# https://github.com/Dicklesworthstone/destructive_command_guard".to_string());
+    lines.push("# Generated by: dcg init --auto".to_string());
+    lines.push(String::new());
+    lines.push("[general]".to_string());
+    lines.push("color = \"auto\"".to_string());
+    lines.push("verbose = false".to_string());
+    lines.push(String::new());
+    lines.push("[packs]".to_string());
+    lines.push("# Auto-detected packs from project files.".to_string());
+    lines.push("# Core packs (core.filesystem, core.git) are always enabled implicitly.".to_string());
+
+    if packs.is_empty() {
+        lines.push("enabled = []".to_string());
+    } else {
+        lines.push("enabled = [".to_string());
+        for (i, pack) in packs.iter().enumerate() {
+            if i < packs.len() - 1 {
+                lines.push(format!("    \"{pack}\","));
+            } else {
+                lines.push(format!("    \"{pack}\","));
+            }
+        }
+        lines.push("]".to_string());
+    }
+
+    lines.push(String::new());
+    lines.push("disabled = []".to_string());
+    lines.push(String::new());
+
+    lines.join("\n")
 }
 
 /// Show the current configuration
@@ -8659,6 +9027,43 @@ fn collect_doctor_report(fix: bool) -> DoctorReport {
         remediation,
         fixed: false,
     });
+
+    // Check 9: Detected-but-not-enabled packs
+    if let Ok(cwd) = std::env::current_dir() {
+        let detections = detect_project_packs(&cwd);
+        if !detections.is_empty() {
+            let not_enabled: Vec<&PackDetection> = detections
+                .iter()
+                .filter(|d| !enabled.contains(&d.pack_id))
+                .collect();
+
+            let (status, message, remediation) = if not_enabled.is_empty() {
+                (
+                    DoctorCheckStatus::Ok,
+                    "All detected project packs are enabled".to_string(),
+                    None,
+                )
+            } else {
+                let pack_list: Vec<&str> = not_enabled.iter().map(|d| d.pack_id.as_str()).collect();
+                (
+                    DoctorCheckStatus::Warning,
+                    format!(
+                        "Project files suggest packs not currently enabled: {}",
+                        pack_list.join(", ")
+                    ),
+                    Some("Run 'dcg init --auto' to enable detected packs".to_string()),
+                )
+            };
+            checks.push(DoctorCheck {
+                id: "auto_detect",
+                name: "Project pack detection",
+                status,
+                message,
+                remediation,
+                fixed: false,
+            });
+        }
+    }
 
     DoctorReport {
         schema_version: DOCTOR_SCHEMA_VERSION,

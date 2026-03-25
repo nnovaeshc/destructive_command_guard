@@ -6374,13 +6374,35 @@ fn run_single_corpus_test(
         }
     }
 
-    let enabled_packs = effective_config.enabled_pack_ids();
-    let enabled_keywords = REGISTRY.collect_enabled_keywords(&enabled_packs);
-    let ordered_packs = REGISTRY.expand_enabled_ordered(&enabled_packs);
-    let keyword_index = REGISTRY.build_enabled_keyword_index(&ordered_packs);
+    let mut enabled_packs = effective_config.enabled_pack_ids();
+    let mut enabled_keywords = REGISTRY.collect_enabled_keywords(&enabled_packs);
     let compiled_overrides = effective_config.overrides.compile();
     let allowlists = crate::LayeredAllowlist::default();
     let heredoc_settings = effective_config.heredoc_settings();
+
+    // Load external packs from custom_paths (glob + tilde expansion).
+    let external_paths = effective_config.packs.expand_custom_paths();
+    let external_store = load_external_packs(&external_paths);
+
+    // Auto-enable external packs and merge their keywords.
+    for id in external_store.pack_ids() {
+        enabled_packs.insert(id.clone());
+    }
+    enabled_keywords.extend(external_store.keywords().iter().copied());
+
+    // Build ordered pack list AFTER external packs are loaded.
+    let mut ordered_packs = REGISTRY.expand_enabled_ordered(&enabled_packs);
+    for id in external_store.pack_ids() {
+        if !ordered_packs.contains(id) {
+            ordered_packs.push(id.clone());
+        }
+    }
+    // Disable keyword index when external packs are present.
+    let keyword_index = if external_store.pack_ids().next().is_some() {
+        None
+    } else {
+        REGISTRY.build_enabled_keyword_index(&ordered_packs)
+    };
 
     // Capture Tier 1 trigger details for debugging false positives.
     let mut heredoc_triggers = Vec::new();
@@ -10243,13 +10265,35 @@ fn is_valid_pack_id(id: &str) -> bool {
 #[allow(dead_code)]
 fn run_smoke_test() -> bool {
     let config = Config::load();
-    let enabled_packs = config.enabled_pack_ids();
-    let enabled_keywords = REGISTRY.collect_enabled_keywords(&enabled_packs);
-    let ordered_packs = REGISTRY.expand_enabled_ordered(&enabled_packs);
-    let keyword_index = REGISTRY.build_enabled_keyword_index(&ordered_packs);
+    let mut enabled_packs = config.enabled_pack_ids();
+    let mut enabled_keywords = REGISTRY.collect_enabled_keywords(&enabled_packs);
     let compiled_overrides = config.overrides.compile();
     let allowlists = crate::LayeredAllowlist::default();
     let heredoc_settings = config.heredoc_settings();
+
+    // Load external packs from custom_paths (glob + tilde expansion).
+    let external_paths = config.packs.expand_custom_paths();
+    let external_store = load_external_packs(&external_paths);
+
+    // Auto-enable external packs and merge their keywords.
+    for id in external_store.pack_ids() {
+        enabled_packs.insert(id.clone());
+    }
+    enabled_keywords.extend(external_store.keywords().iter().copied());
+
+    // Build ordered pack list AFTER external packs are loaded.
+    let mut ordered_packs = REGISTRY.expand_enabled_ordered(&enabled_packs);
+    for id in external_store.pack_ids() {
+        if !ordered_packs.contains(id) {
+            ordered_packs.push(id.clone());
+        }
+    }
+    // Disable keyword index when external packs are present.
+    let keyword_index = if external_store.pack_ids().next().is_some() {
+        None
+    } else {
+        REGISTRY.build_enabled_keyword_index(&ordered_packs)
+    };
 
     // Test 1: "git status" should be allowed
     let allow_result = crate::evaluate_command_with_pack_order(

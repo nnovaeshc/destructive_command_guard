@@ -299,13 +299,35 @@ pub struct ScanEvalContext {
 impl ScanEvalContext {
     #[must_use]
     pub fn from_config(config: &Config) -> Self {
-        let enabled_packs: HashSet<String> = config.enabled_pack_ids();
-        let enabled_keywords = REGISTRY.collect_enabled_keywords(&enabled_packs);
-        let ordered_packs = REGISTRY.expand_enabled_ordered(&enabled_packs);
-        let keyword_index = REGISTRY.build_enabled_keyword_index(&ordered_packs);
+        let mut enabled_packs: HashSet<String> = config.enabled_pack_ids();
+        let mut enabled_keywords = REGISTRY.collect_enabled_keywords(&enabled_packs);
         let compiled_overrides = config.overrides.compile();
         let allowlists = crate::load_default_allowlists();
         let heredoc_settings = config.heredoc_settings();
+
+        // Load external packs from custom_paths (glob + tilde expansion).
+        let external_paths = config.packs.expand_custom_paths();
+        let external_store = crate::packs::load_external_packs(&external_paths);
+
+        // Auto-enable external packs and merge their keywords.
+        for id in external_store.pack_ids() {
+            enabled_packs.insert(id.clone());
+        }
+        enabled_keywords.extend(external_store.keywords().iter().copied());
+
+        // Build ordered pack list AFTER external packs are loaded.
+        let mut ordered_packs = REGISTRY.expand_enabled_ordered(&enabled_packs);
+        for id in external_store.pack_ids() {
+            if !ordered_packs.contains(id) {
+                ordered_packs.push(id.clone());
+            }
+        }
+        // Disable keyword index when external packs are present.
+        let keyword_index = if external_store.pack_ids().next().is_some() {
+            None
+        } else {
+            REGISTRY.build_enabled_keyword_index(&ordered_packs)
+        };
 
         Self {
             enabled_keywords,

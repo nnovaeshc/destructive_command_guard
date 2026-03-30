@@ -13,7 +13,7 @@
 
 A high-performance hook for AI coding agents that blocks destructive commands before they execute, protecting your work from accidental deletion.
 
-**Supported:** [Claude Code](https://claude.ai/code), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [GitHub Copilot CLI](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-hooks), [OpenCode](https://opencode.ai) (via [community plugin](https://github.com/aspiers/ai-config/blob/main/.config/opencode/plugins/dcg-guard.js)), [Aider](https://aider.chat/) (limited—git hooks only), [Continue](https://continue.dev) (detection only), [Codex CLI](https://github.com/openai/codex) (detection only)
+**Supported:** [Claude Code](https://claude.ai/code), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [GitHub Copilot CLI](https://docs.github.com/en/copilot/concepts/agents/coding-agent/about-hooks), [OpenCode](https://opencode.ai) (via [community plugin](https://github.com/aspiers/ai-config/blob/main/.config/opencode/plugins/dcg-guard.js)), [Aider](https://aider.chat/) (limited—git hooks only), [Continue](https://continue.dev) (detection only), [Codex CLI](https://github.com/openai/codex)
 
 <div align="center">
 <h3>Quick Install</h3>
@@ -662,8 +662,8 @@ Easy mode automatically:
 - Configures Gemini CLI hooks (if Gemini CLI is installed)
 - Configures GitHub Copilot CLI hooks in `.github/hooks/dcg.json` (if Copilot is installed and you're in a git repo)
 - Configures Aider (enables git hooks via `git-commit-verify: true`)
+- Configures Codex CLI hooks (if Codex CLI is installed)
 - Detects Continue (no auto-config; lacks shell command hooks)
-- Detects Codex CLI (no auto-config; lacks pre-execution hooks)
 
 **Other options:**
 
@@ -710,8 +710,8 @@ The install script:
 - Configures Gemini CLI hooks (if already installed)
 - Configures GitHub Copilot CLI hooks in `.github/hooks/dcg.json` (if installed and run from a git repo)
 - Configures Aider (enables `git-commit-verify` for git hook support)
+- Configures Codex CLI hooks (if Codex CLI is installed)
 - Detects Continue (reports it has no shell command hooks)
-- Detects Codex CLI (reports it has no pre-execution hooks)
 - Offers to update your PATH
 - Skips agent configuration when `--no-configure` is provided
 
@@ -719,7 +719,7 @@ The install script:
 
 > **Note on Continue:** Continue does not have shell command interception hooks. The installer detects Continue installations but cannot auto-configure protection. For dcg protection with Continue, install dcg as a [git pre-commit hook](docs/scan-precommit-guide.md).
 
-> **Note on Codex CLI:** OpenAI's Codex CLI only supports post-execution hooks (`notify`, `agent-turn-complete`), not pre-execution command interception. The installer detects Codex CLI but cannot auto-configure protection. For dcg protection with Codex CLI, install dcg as a [git pre-commit hook](docs/scan-precommit-guide.md).
+> **Note on Codex CLI:** Codex CLI now supports experimental PreToolUse hooks via `~/.codex/hooks.json`. The installer auto-configures dcg as a Bash command hook. The hook wire format is compatible with Claude Code's protocol, so dcg handles both identically. **Caveat:** The model can still work around hook-based blocking by writing its own script to disk and then running that script with Bash, so treat this as a useful guardrail rather than a complete enforcement boundary.
 
 > **Note on GitHub Copilot CLI:** Copilot hooks are repository-local (`.github/hooks/*.json`) and loaded from the current working directory. Run the installer from each repository where you want protection so it can create/merge `.github/hooks/dcg.json`.
 

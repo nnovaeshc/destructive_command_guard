@@ -1117,6 +1117,7 @@ remove_predecessor() {
 CLAUDE_SETTINGS="$HOME/.claude/settings.json"
 GEMINI_SETTINGS="$HOME/.gemini/settings.json"
 AIDER_SETTINGS="$HOME/.aider.conf.yml"
+CODEX_SETTINGS="$HOME/.codex/hooks.json"
 CURSOR_SETTINGS_MAC="$HOME/Library/Application Support/Cursor/User/settings.json"
 CURSOR_SETTINGS_LINUX="$HOME/.config/Cursor/User/settings.json"
 CURSOR_HOOKS_JSON="$HOME/.cursor/hooks.json"
@@ -1129,7 +1130,8 @@ CLAUDE_STATUS=""  # "created"|"merged"|"already"|"failed"
 GEMINI_STATUS=""  # "created"|"merged"|"already"|"failed"|"skipped"
 AIDER_STATUS=""   # "created"|"merged"|"already"|"skipped"|"failed"
 CONTINUE_STATUS="" # "unsupported"|"skipped"
-CODEX_STATUS=""   # "unsupported"|"skipped"
+CODEX_STATUS=""   # "created"|"merged"|"already"|"skipped"|"failed"
+CODEX_BACKUP=""
 CURSOR_STATUS=""  # "created"|"merged"|"already"|"skipped"|"failed"|"conflict"
 COPILOT_STATUS="" # "created"|"merged"|"already"|"skipped"|"no_repo"|"failed"
 CLAUDE_BACKUP=""
@@ -1501,15 +1503,21 @@ configure_codex() {
   # Codex CLI (https://github.com/openai/codex) is OpenAI's coding assistant.
   # Detection: check for ~/.codex directory or `codex` command in PATH.
   #
-  # IMPORTANT: Codex CLI does NOT have pre-execution command hooks.
-  # As of 2025, Codex CLI only supports post-execution hooks:
-  # - notify: Send notifications after events
-  # - agent-turn-complete: Callback after agent completes work
+  # Codex CLI supports experimental PreToolUse hooks via ~/.codex/hooks.json.
+  # The hook wire format is compatible with Claude Code's hookSpecificOutput
+  # protocol: Codex sends { tool_name: "Bash", tool_input: { command: "..." },
+  # hook_event_name: "PreToolUse" } on stdin and expects the same
+  # hookSpecificOutput response with permissionDecision: "deny".
   #
-  # See: https://github.com/openai/codex/discussions/2150
+  # Note: The model can still work around this by writing its own script to
+  # disk and then running that script, so treat this as a useful guardrail
+  # rather than a complete enforcement boundary.
   #
-  # For users who want dcg protection with Codex CLI, the recommended approach
-  # is to install dcg as a git pre-commit hook (see docs/scan-precommit-guide.md).
+  # See: https://developers.openai.com/codex/hooks
+
+  local settings_file="$CODEX_SETTINGS"
+  local settings_dir
+  settings_dir=$(dirname "$settings_file")
 
   # Check if Codex is installed
   local codex_installed=0
@@ -1520,7 +1528,7 @@ configure_codex() {
   fi
 
   # Check for config directory
-  if [ -d "$HOME/.codex" ]; then
+  if [ -d "$settings_dir" ]; then
     codex_installed=1
   fi
 
@@ -1529,8 +1537,118 @@ configure_codex() {
     return 0
   fi
 
-  # Codex is installed but has no pre-execution command hooks
-  CODEX_STATUS="unsupported"
+  # Create directory if needed (codex command exists but no config dir yet)
+  if [ ! -d "$settings_dir" ]; then
+    mkdir -p "$settings_dir"
+  fi
+
+  if [ -f "$settings_file" ]; then
+    # Check if dcg is already configured
+    if grep -q '"command".*dcg' "$settings_file" 2>/dev/null; then
+      CODEX_STATUS="already"
+      AUTO_CONFIGURED=1
+      return 0
+    fi
+
+    # hooks.json exists, need to merge
+    CODEX_BACKUP="${settings_file}.bak.$(date +%Y%m%d%H%M%S)"
+    cp "$settings_file" "$CODEX_BACKUP"
+
+    if command -v python3 >/dev/null 2>&1; then
+      python3 - "$settings_file" "$DEST/dcg" <<'PYEOF'
+import json
+import sys
+
+hooks_file = sys.argv[1]
+dcg_path = sys.argv[2]
+
+try:
+    with open(hooks_file, 'r') as f:
+        config = json.load(f)
+except (IOError, ValueError, json.JSONDecodeError):
+    config = {}
+
+# Ensure hooks structure exists
+if 'hooks' not in config:
+    config['hooks'] = {}
+if 'PreToolUse' not in config['hooks']:
+    config['hooks']['PreToolUse'] = []
+
+# Look for existing Bash matcher
+bash_hooks = []
+new_pre_tool_use = []
+
+for entry in config['hooks']['PreToolUse']:
+    if entry.get('matcher') == 'Bash':
+        if 'hooks' in entry:
+            for hook in entry['hooks']:
+                if isinstance(hook, dict) and 'command' in hook:
+                    cmd = hook.get('command', '')
+                    if 'dcg' not in cmd:  # Don't duplicate dcg
+                        bash_hooks.append(hook)
+                    elif 'dcg' in cmd:
+                        # Keep existing dcg hook but ensure path is updated
+                        bash_hooks.append({"type": "command", "command": dcg_path})
+                else:
+                    bash_hooks.append(hook)
+    else:
+        new_pre_tool_use.append(entry)
+
+# Add dcg hook at the beginning if not already present
+dcg_hook = {"type": "command", "command": dcg_path}
+dcg_exists = any('dcg' in h.get('command', '') for h in bash_hooks if isinstance(h, dict))
+if not dcg_exists:
+    bash_hooks.insert(0, dcg_hook)
+
+# Create consolidated Bash matcher with dcg first
+if bash_hooks:
+    new_pre_tool_use.insert(0, {
+        "matcher": "Bash",
+        "hooks": bash_hooks
+    })
+
+config['hooks']['PreToolUse'] = new_pre_tool_use
+
+with open(hooks_file, 'w') as f:
+    json.dump(config, f, indent=2)
+PYEOF
+      if [ $? -eq 0 ]; then
+        CODEX_STATUS="merged"
+        AUTO_CONFIGURED=1
+      else
+        mv "$CODEX_BACKUP" "$settings_file" 2>/dev/null || true
+        CODEX_STATUS="failed"
+        CODEX_BACKUP=""
+      fi
+    else
+      # python3 not available - remove unnecessary backup
+      rm -f "$CODEX_BACKUP" 2>/dev/null || true
+      CODEX_BACKUP=""
+      CODEX_STATUS="failed"
+      return 1
+    fi
+  else
+    # Create new hooks.json file
+    cat > "$settings_file" <<EOFSET
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$DEST/dcg"
+          }
+        ]
+      }
+    ]
+  }
+}
+EOFSET
+    CODEX_STATUS="created"
+    AUTO_CONFIGURED=1
+  fi
 }
 
 configure_copilot() {
@@ -2102,9 +2220,18 @@ case "$CONTINUE_STATUS" in
 esac
 
 case "$CODEX_STATUS" in
-  unsupported)
-    summary_lines+=("Codex CLI:   Detected but has no pre-execution hooks")
-    summary_lines+=("             Tip: Install dcg as git pre-commit hook for protection")
+  created)
+    summary_lines+=("Codex CLI:   Created $CODEX_SETTINGS with dcg hook")
+    ;;
+  merged)
+    summary_lines+=("Codex CLI:   Added dcg hook to existing $CODEX_SETTINGS")
+    [ -n "$CODEX_BACKUP" ] && summary_lines+=("             Backup: $CODEX_BACKUP")
+    ;;
+  already)
+    summary_lines+=("Codex CLI:   Already configured (no changes)")
+    ;;
+  failed)
+    summary_lines+=("Codex CLI:   Configuration failed (python3 required for merge)")
     ;;
   skipped|"")
     summary_lines+=("Codex CLI:   Not installed (skipped)")

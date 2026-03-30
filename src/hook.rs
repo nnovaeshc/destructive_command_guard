@@ -1,8 +1,8 @@
 //! Hook protocol handling.
 //!
 //! This module handles JSON input/output for supported hook protocols
-//! (Claude Code, Copilot, and Gemini). It parses incoming hook requests
-//! and formats denial responses.
+//! (Claude Code, Codex CLI, Copilot, and Gemini). It parses incoming hook
+//! requests and formats denial responses.
 
 use crate::evaluator::MatchSpan;
 use crate::highlight::HighlightSpan;
@@ -218,7 +218,7 @@ pub struct GeminiHookOutput<'a> {
 /// Hook protocol variant for response formatting.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum HookProtocol {
-    /// Claude Code / Augment-compatible `hookSpecificOutput` protocol.
+    /// Claude Code / Codex CLI / Augment-compatible `hookSpecificOutput` protocol.
     ClaudeCompatible,
     /// Copilot hook protocol (`continue` / `stopReason` + permission fields).
     Copilot,

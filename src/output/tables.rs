@@ -100,7 +100,7 @@ impl TableStyle {
 
     /// Returns the corresponding rich_rust box style.
     #[cfg(feature = "rich-output")]
-    fn to_box_chars(&self) -> &'static rich_rust::r#box::BoxChars {
+    fn box_chars(&self) -> &'static rich_rust::r#box::BoxChars {
         use rich_rust::r#box::{ASCII, MINIMAL, ROUNDED};
         match self {
             Self::Unicode => &ROUNDED,
@@ -302,7 +302,7 @@ impl ScanResultsTable {
             table = table.with_column(RichColumn::new("Command"));
         }
 
-        table = table.box_style(self.style.to_box_chars());
+        table = table.box_style(self.style.box_chars());
 
         for row in &self.rows {
             let severity_markup = self.severity_markup_rich(row.severity);
@@ -549,7 +549,7 @@ impl StatsTable {
             .with_column(RichColumn::new("Denied").justify(JustifyMethod::Right))
             .with_column(RichColumn::new("Noise%").justify(JustifyMethod::Right));
 
-        table = table.box_style(self.style.to_box_chars());
+        table = table.box_style(self.style.box_chars());
 
         for row in &self.rows {
             let noise_markup = self.noise_markup_rich(row.noise_pct);
@@ -594,15 +594,15 @@ impl StatsTable {
         let color = if pct > 50.0 {
             self.theme
                 .as_ref()
-                .map_or("red".to_string(), |t| t.error_markup())
+                .map_or_else(|| "red".to_string(), RichThemeExt::error_markup)
         } else if pct > 25.0 {
             self.theme
                 .as_ref()
-                .map_or("yellow".to_string(), |t| t.warning_markup())
+                .map_or_else(|| "yellow".to_string(), RichThemeExt::warning_markup)
         } else {
             self.theme
                 .as_ref()
-                .map_or("green".to_string(), |t| t.success_markup())
+                .map_or_else(|| "green".to_string(), RichThemeExt::success_markup)
         };
 
         format!("[{color}]{label}[/]")
@@ -813,7 +813,7 @@ impl PackListTable {
             table = table.with_column(RichColumn::new("Status").justify(JustifyMethod::Center));
         }
 
-        table = table.box_style(self.style.to_box_chars());
+        table = table.box_style(self.style.box_chars());
 
         for row in &self.rows {
             let mut cells: Vec<RichCell> = vec![
@@ -848,13 +848,13 @@ impl PackListTable {
             let color = self
                 .theme
                 .as_ref()
-                .map_or("green".to_string(), |t| t.success_markup());
+                .map_or_else(|| "green".to_string(), RichThemeExt::success_markup);
             format!("[{color}]● enabled[/]")
         } else {
             let color = self
                 .theme
                 .as_ref()
-                .map_or("dim".to_string(), |t| t.muted_markup());
+                .map_or_else(|| "dim".to_string(), RichThemeExt::muted_markup);
             format!("[{color}]○ disabled[/]")
         }
     }

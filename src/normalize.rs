@@ -1355,10 +1355,10 @@ fn attached_redirection_index(token: &str) -> Option<usize> {
             b'"' if !in_single => {
                 in_double = !in_double;
             }
-            b'>' | b'<' if !in_single && !in_double => {
-                if idx > 0 && !bytes[idx - 1].is_ascii_whitespace() {
-                    return Some(idx);
-                }
+            b'>' | b'<'
+                if !in_single && !in_double && idx > 0 && !bytes[idx - 1].is_ascii_whitespace() =>
+            {
+                return Some(idx);
             }
             _ => {}
         }

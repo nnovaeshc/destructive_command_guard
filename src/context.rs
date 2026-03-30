@@ -407,18 +407,16 @@ impl ContextClassifier {
                             in_command_position = true;
                             continue;
                         }
-                        b'#' => {
+                        b'#' if i == 0
+                            || bytes[i - 1].is_ascii_whitespace()
+                            || matches!(bytes[i - 1], b'|' | b'&' | b';') =>
+                        {
                             // Comment start if start of word (including after separators).
-                            if i == 0
-                                || bytes[i - 1].is_ascii_whitespace()
-                                || matches!(bytes[i - 1], b'|' | b'&' | b';')
-                            {
-                                if i > span_start {
-                                    spans.push(Span::new(current_kind, span_start, i));
-                                }
-                                span_start = i;
-                                stack.push(TokenizerState::Comment);
+                            if i > span_start {
+                                spans.push(Span::new(current_kind, span_start, i));
                             }
+                            span_start = i;
+                            stack.push(TokenizerState::Comment);
                         }
                         b' ' | b'\t' | b'\n' => {
                             // Whitespace
@@ -542,10 +540,8 @@ impl ContextClassifier {
                         b'"' => stack.push(TokenizerState::DoubleQuote),
                         b'\'' => stack.push(TokenizerState::SingleQuote),
                         b'`' => stack.push(TokenizerState::Backtick),
-                        b'#' => {
-                            if i == 0 || bytes[i - 1].is_ascii_whitespace() {
-                                stack.push(TokenizerState::Comment);
-                            }
+                        b'#' if i == 0 || bytes[i - 1].is_ascii_whitespace() => {
+                            stack.push(TokenizerState::Comment);
                         }
                         _ => {}
                     }

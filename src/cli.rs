@@ -13072,9 +13072,8 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         std::fs::write(tmp.path().join("Dockerfile"), "FROM alpine").unwrap();
         let detections = detect_project_packs(tmp.path());
-        let pack_ids: Vec<&str> = detections.iter().map(|d| d.pack_id.as_str()).collect();
         assert!(
-            pack_ids.contains(&"containers.docker"),
+            detections.iter().map(|d| d.pack_id.as_str()).any(|x| x == "containers.docker"),
             "Should detect Docker from Dockerfile"
         );
     }
@@ -13084,13 +13083,12 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         std::fs::write(tmp.path().join("docker-compose.yml"), "version: '3'").unwrap();
         let detections = detect_project_packs(tmp.path());
-        let pack_ids: Vec<&str> = detections.iter().map(|d| d.pack_id.as_str()).collect();
         assert!(
-            pack_ids.contains(&"containers.compose"),
+            detections.iter().map(|d| d.pack_id.as_str()).any(|x| x == "containers.compose"),
             "Should detect compose"
         );
         assert!(
-            pack_ids.contains(&"containers.docker"),
+            detections.iter().map(|d| d.pack_id.as_str()).any(|x| x == "containers.docker"),
             "Should also detect docker from compose"
         );
     }
@@ -13100,9 +13098,8 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         std::fs::write(tmp.path().join("main.tf"), "resource {}").unwrap();
         let detections = detect_project_packs(tmp.path());
-        let pack_ids: Vec<&str> = detections.iter().map(|d| d.pack_id.as_str()).collect();
         assert!(
-            pack_ids.contains(&"infrastructure.terraform"),
+            detections.iter().map(|d| d.pack_id.as_str()).any(|x| x == "infrastructure.terraform"),
             "Should detect terraform from main.tf"
         );
     }
@@ -13114,9 +13111,8 @@ mod tests {
         std::fs::create_dir_all(&workflows).unwrap();
         std::fs::write(workflows.join("ci.yml"), "on: push").unwrap();
         let detections = detect_project_packs(tmp.path());
-        let pack_ids: Vec<&str> = detections.iter().map(|d| d.pack_id.as_str()).collect();
         assert!(
-            pack_ids.contains(&"cicd.github_actions"),
+            detections.iter().map(|d| d.pack_id.as_str()).any(|x| x == "cicd.github_actions"),
             "Should detect GitHub Actions"
         );
     }
@@ -13127,13 +13123,12 @@ mod tests {
         std::fs::create_dir_all(tmp.path().join("k8s")).unwrap();
         std::fs::write(tmp.path().join("Chart.yaml"), "apiVersion: v2").unwrap();
         let detections = detect_project_packs(tmp.path());
-        let pack_ids: Vec<&str> = detections.iter().map(|d| d.pack_id.as_str()).collect();
         assert!(
-            pack_ids.contains(&"kubernetes.kubectl"),
+            detections.iter().map(|d| d.pack_id.as_str()).any(|x| x == "kubernetes.kubectl"),
             "Should detect kubectl from k8s/"
         );
         assert!(
-            pack_ids.contains(&"kubernetes.helm"),
+            detections.iter().map(|d| d.pack_id.as_str()).any(|x| x == "kubernetes.helm"),
             "Should detect helm from Chart.yaml"
         );
     }
@@ -13147,17 +13142,16 @@ mod tests {
         )
         .unwrap();
         let detections = detect_project_packs(tmp.path());
-        let pack_ids: Vec<&str> = detections.iter().map(|d| d.pack_id.as_str()).collect();
         assert!(
-            pack_ids.contains(&"database.postgresql"),
+            detections.iter().map(|d| d.pack_id.as_str()).any(|x| x == "database.postgresql"),
             "Should detect postgres from pg dep"
         );
         assert!(
-            pack_ids.contains(&"database.mongodb"),
+            detections.iter().map(|d| d.pack_id.as_str()).any(|x| x == "database.mongodb"),
             "Should detect mongo from mongoose dep"
         );
         assert!(
-            pack_ids.contains(&"package_managers"),
+            detections.iter().map(|d| d.pack_id.as_str()).any(|x| x == "package_managers"),
             "Should detect package_managers from package.json"
         );
     }
@@ -13167,9 +13161,8 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         std::fs::write(tmp.path().join("serverless.yml"), "service: myapp").unwrap();
         let detections = detect_project_packs(tmp.path());
-        let pack_ids: Vec<&str> = detections.iter().map(|d| d.pack_id.as_str()).collect();
         assert!(
-            pack_ids.contains(&"cloud.aws"),
+            detections.iter().map(|d| d.pack_id.as_str()).any(|x| x == "cloud.aws"),
             "Should detect AWS from serverless.yml"
         );
     }
@@ -13179,9 +13172,8 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         std::fs::write(tmp.path().join("cloudbuild.yaml"), "steps:").unwrap();
         let detections = detect_project_packs(tmp.path());
-        let pack_ids: Vec<&str> = detections.iter().map(|d| d.pack_id.as_str()).collect();
         assert!(
-            pack_ids.contains(&"cloud.gcp"),
+            detections.iter().map(|d| d.pack_id.as_str()).any(|x| x == "cloud.gcp"),
             "Should detect GCP from cloudbuild.yaml"
         );
     }

@@ -1967,16 +1967,21 @@ impl GitAwarenessConfig {
 
 /// Trust level for AI coding agents.
 ///
-/// Determines how strictly commands are evaluated for a given agent.
+/// An advisory label that is recorded in JSON output and verbose logs.
+/// It does **not** directly change rule evaluation -- behavioral differences
+/// are controlled by the other [`AgentProfile`] fields (`disabled_packs`,
+/// `extra_packs`, `additional_allowlist`, `disabled_allowlist`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum TrustLevel {
-    /// High trust: more lenient evaluation thresholds.
+    /// High trust: agent has proven reliable. Typically paired with a broader
+    /// allowlist and fewer packs in the agent profile.
     High,
-    /// Medium trust: default behavior.
+    /// Medium trust: default behavior, standard configuration.
     #[default]
     Medium,
-    /// Low trust: stricter evaluation thresholds, more patterns enabled.
+    /// Low trust: extra caution for unknown agents. Typically paired with more
+    /// packs and a restricted allowlist in the agent profile.
     Low,
 }
 
@@ -1986,7 +1991,8 @@ pub enum TrustLevel {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct AgentProfile {
-    /// Trust level for this agent (affects confidence thresholds).
+    /// Advisory trust label for this agent (included in JSON output and logs).
+    /// Does not directly affect evaluation; see other fields for behavioral control.
     pub trust_level: TrustLevel,
 
     /// Packs to disable for this agent (subtracted from base config).

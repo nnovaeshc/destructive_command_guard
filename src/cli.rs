@@ -14,7 +14,7 @@ use crate::evaluator::{
     DEFAULT_WINDOW_WIDTH, EvaluationDecision, EvaluationResult, MatchSource,
     evaluate_command_with_pack_order, evaluate_command_with_pack_order_deadline_at_path,
 };
-use crate::exit_codes::EXIT_DENIED;
+use crate::exit_codes::{EXIT_DENIED, EXIT_WARNING};
 use crate::highlight::{HighlightSpan, format_highlighted_command, should_use_color};
 use crate::history::{
     ExportOptions, HistoryDb, HistoryStats, InteractiveAllowlistAuditEntry,
@@ -489,6 +489,49 @@ pub enum Command {
         action: DevAction,
     },
 
+    /// Classify a command's risk level without blocking
+    ///
+    /// Returns structured risk classification (JSON or text) instead of a
+    /// block/pass decision. Designed for Claude Code hooks to use dcg
+    /// bidirectionally: block dangerous commands AND auto-allow safe ones.
+    ///
+    /// Exit codes (consistent with dcg exit code contract):
+    /// - 0: allow (safe or low risk)
+    /// - 2: warn (medium risk)
+    /// - 1: block (high or critical risk)
+    ///
+    /// # Examples
+    ///
+    /// ```bash
+    /// # JSON output (default)
+    /// dcg classify "git status"
+    ///
+    /// # Text output
+    /// dcg classify --format text "rm -rf /"
+    ///
+    /// # Use in Claude Code hook to auto-allow safe commands
+    /// dcg classify --format json "ls -la"
+    /// ```
+    #[command(name = "classify")]
+    Classify {
+        /// Command to classify
+        command: String,
+
+        /// Output format (json or text)
+        #[arg(
+            long,
+            short = 'f',
+            value_enum,
+            default_value = "json",
+            env = "DCG_FORMAT"
+        )]
+        format: ClassifyFormat,
+
+        /// Disable colored output
+        #[arg(long)]
+        no_color: bool,
+    },
+
     /// Start MCP server for direct agent integration
     ///
     /// Runs dcg as an MCP (Model Context Protocol) server over stdio,
@@ -680,6 +723,18 @@ impl TestFormat {
     }
 }
 
+/// Output format for classify command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, clap::ValueEnum)]
+pub enum ClassifyFormat {
+    /// Structured JSON output (default for agent consumption)
+    #[default]
+    #[value(alias = "sarif")]
+    Json,
+    /// Human-readable text output
+    #[value(alias = "human")]
+    Text,
+}
+
 /// Output format for packs list command.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, clap::ValueEnum)]
 pub enum PacksFormat {
@@ -694,6 +749,44 @@ pub enum PacksFormat {
 
 /// Schema version for TestOutput JSON format
 const TEST_OUTPUT_SCHEMA_VERSION: u32 = 1;
+
+/// Schema version for ClassifyOutput JSON format
+const CLASSIFY_OUTPUT_SCHEMA_VERSION: u32 = 1;
+
+/// JSON output structure for `dcg classify` command.
+///
+/// Provides risk classification for a command, enabling Claude Code hooks
+/// to make bidirectional decisions: block dangerous commands AND auto-allow safe ones.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ClassifyOutput {
+    /// Schema version for forward compatibility (currently 1)
+    pub schema_version: u32,
+    /// DCG version (e.g., "0.3.0")
+    pub dcg_version: String,
+    /// The command that was classified
+    pub command: String,
+    /// The decision: "allow", "warn", or "block"
+    pub decision: String,
+    /// Risk level: "safe", "low", "medium", "high", "critical"
+    pub risk_level: String,
+    /// Risk score from 0.0 (safe) to 1.0 (critical)
+    pub risk_score: f64,
+    /// Reasons for the classification (empty if safe)
+    pub reasons: Vec<ClassifyReason>,
+    /// Suggested safer alternatives (empty if safe)
+    pub suggestions: Vec<String>,
+}
+
+/// A single reason contributing to a classify decision.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ClassifyReason {
+    /// Rule identifier (e.g., "core.git:reset-hard")
+    pub rule_id: String,
+    /// Severity: "critical", "high", "medium", "low"
+    pub severity: String,
+    /// Human-readable explanation of why this pattern matched
+    pub explanation: String,
+}
 
 /// JSON output structure for `dcg test` command
 #[derive(Debug, Clone, serde::Serialize)]
@@ -1999,6 +2092,22 @@ pub fn run_command(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Some(Command::Dev { action }) => {
             handle_dev_command(&config, action, verbosity)?;
+        }
+        Some(Command::Classify {
+            command,
+            format,
+            no_color,
+        }) => {
+            let robot_mode = cli.robot || std::env::var("DCG_ROBOT").is_ok();
+            let exit_code = classify_command(
+                &config,
+                &command,
+                format,
+                no_color || robot_mode,
+            );
+            if exit_code != 0 {
+                std::process::exit(exit_code);
+            }
         }
         Some(Command::McpServer) => {
             crate::mcp::run_mcp_server()?;
@@ -4084,6 +4193,235 @@ fn test_command(
 
     // Return true if the command was blocked (for exit code handling)
     result.decision == EvaluationDecision::Deny
+}
+
+/// Classify a command's risk level and return an exit code.
+///
+/// Returns:
+/// - 0 for allow (safe or low risk)
+/// - `EXIT_DENIED` (1) for block (high or critical)
+/// - `EXIT_WARNING` (2) for warn (medium risk)
+fn classify_command(
+    config: &Config,
+    command: &str,
+    format: ClassifyFormat,
+    no_color: bool,
+) -> i32 {
+    // Build effective config (no extra packs for classify — uses current config as-is)
+    let effective_config = config.clone();
+
+    // Get enabled packs and collect keywords for quick rejection
+    let mut enabled_packs = effective_config.enabled_pack_ids();
+    let mut enabled_keywords = REGISTRY.collect_enabled_keywords(&enabled_packs);
+    let heredoc_settings = effective_config.heredoc_settings();
+
+    // Compile overrides once
+    let compiled_overrides = effective_config.overrides.compile();
+
+    // Load allowlists (project/user/system)
+    let allowlists = load_default_allowlists();
+
+    // Load external packs from custom_paths
+    let external_paths = effective_config.packs.expand_custom_paths();
+    let external_store = load_external_packs(&external_paths);
+
+    // Auto-enable external packs and merge their keywords
+    for id in external_store.pack_ids() {
+        enabled_packs.insert(id.clone());
+    }
+    enabled_keywords.extend(external_store.keywords().iter().copied());
+
+    // Build ordered pack list
+    let mut ordered_packs = REGISTRY.expand_enabled_ordered(&enabled_packs);
+    for id in external_store.pack_ids() {
+        if !ordered_packs.contains(id) {
+            ordered_packs.push(id.clone());
+        }
+    }
+    let keyword_index = if external_store.pack_ids().next().is_some() {
+        None
+    } else {
+        REGISTRY.build_enabled_keyword_index(&ordered_packs)
+    };
+
+    // Evaluate the command
+    let result = evaluate_command_with_pack_order_deadline_at_path(
+        command,
+        &enabled_keywords,
+        &ordered_packs,
+        keyword_index.as_ref(),
+        &compiled_overrides,
+        &allowlists,
+        &heredoc_settings,
+        None, // allow_once_audit
+        None, // project_path
+        None, // deadline
+    );
+
+    // Map EvaluationResult to classification
+    let (decision, risk_level, risk_score, reasons, suggestions) = match result.decision {
+        EvaluationDecision::Allow => {
+            // Check if this was an allowlist override (still matched a pattern)
+            if result.allowlist_override.is_some() {
+                // Matched a dangerous pattern but allowlisted — still "allow" but note it
+                ("allow".to_string(), "low".to_string(), 0.2, vec![], vec![])
+            } else {
+                ("allow".to_string(), "safe".to_string(), 0.0, vec![], vec![])
+            }
+        }
+        EvaluationDecision::Deny => {
+            let severity = result
+                .pattern_info
+                .as_ref()
+                .and_then(|info| info.severity);
+            let effective_mode = result.effective_mode.unwrap_or(DecisionMode::Deny);
+
+            // Build reasons from pattern info
+            let reasons = result
+                .pattern_info
+                .as_ref()
+                .map(|info| {
+                    let rule_id = info
+                        .pack_id
+                        .as_ref()
+                        .and_then(|p| info.pattern_name.as_ref().map(|n| format!("{p}:{n}")))
+                        .unwrap_or_else(|| "unknown".to_string());
+                    let severity_str = info
+                        .severity
+                        .map_or("high", |s| s.label())
+                        .to_string();
+                    let explanation = info
+                        .explanation
+                        .clone()
+                        .unwrap_or_else(|| info.reason.clone());
+                    vec![ClassifyReason {
+                        rule_id,
+                        severity: severity_str,
+                        explanation,
+                    }]
+                })
+                .unwrap_or_default();
+
+            // Collect suggestions from pattern info
+            let suggestions = result
+                .pattern_info
+                .as_ref()
+                .map(|info| {
+                    info.suggestions
+                        .iter()
+                        .filter(|s| s.platform.matches_current())
+                        .map(|s| {
+                            if s.description.is_empty() {
+                                s.command.to_string()
+                            } else {
+                                format!("{} ({})", s.command, s.description)
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_default();
+
+            // Determine decision and risk based on severity and effective mode
+            match effective_mode {
+                DecisionMode::Log => {
+                    // Log-only: treat as allow with low risk
+                    let risk_score = match severity {
+                        Some(PackSeverity::Low) => 0.2,
+                        Some(PackSeverity::Medium) => 0.3,
+                        _ => 0.2,
+                    };
+                    (
+                        "allow".to_string(),
+                        severity.map_or("low", |s| s.label()).to_string(),
+                        risk_score,
+                        reasons,
+                        suggestions,
+                    )
+                }
+                DecisionMode::Warn => {
+                    let risk_score = match severity {
+                        Some(PackSeverity::Medium) => 0.5,
+                        Some(PackSeverity::Low) => 0.3,
+                        _ => 0.5,
+                    };
+                    (
+                        "warn".to_string(),
+                        severity.map_or("medium", |s| s.label()).to_string(),
+                        risk_score,
+                        reasons,
+                        suggestions,
+                    )
+                }
+                DecisionMode::Deny => {
+                    let (risk_level, risk_score) = match severity {
+                        Some(PackSeverity::Critical) => ("critical", 1.0),
+                        Some(PackSeverity::High) => ("high", 0.8),
+                        Some(PackSeverity::Medium) => ("medium", 0.5),
+                        Some(PackSeverity::Low) => ("low", 0.3),
+                        None => ("high", 0.8), // Default to high if severity unknown
+                    };
+                    (
+                        "block".to_string(),
+                        risk_level.to_string(),
+                        risk_score,
+                        reasons,
+                        suggestions,
+                    )
+                }
+            }
+        }
+    };
+
+    let output = ClassifyOutput {
+        schema_version: CLASSIFY_OUTPUT_SCHEMA_VERSION,
+        dcg_version: env!("CARGO_PKG_VERSION").to_string(),
+        command: command.to_string(),
+        decision: decision.clone(),
+        risk_level: risk_level.clone(),
+        risk_score,
+        reasons,
+        suggestions,
+    };
+
+    match format {
+        ClassifyFormat::Json => {
+            println!("{}", serde_json::to_string_pretty(&output).unwrap());
+        }
+        ClassifyFormat::Text => {
+            let use_color = !no_color && should_use_color();
+            let decision_display = if use_color {
+                match decision.as_str() {
+                    "allow" => "\x1b[32mALLOW\x1b[0m",
+                    "warn" => "\x1b[33mWARN\x1b[0m",
+                    "block" => "\x1b[31mBLOCK\x1b[0m",
+                    _ => &decision,
+                }
+            } else {
+                match decision.as_str() {
+                    "allow" => "ALLOW",
+                    "warn" => "WARN",
+                    "block" => "BLOCK",
+                    _ => &decision,
+                }
+            };
+            println!("{decision_display} [{risk_level}] {command}");
+            for reason in &output.reasons {
+                println!("  rule: {} ({})", reason.rule_id, reason.severity);
+                println!("  why:  {}", reason.explanation);
+            }
+            for suggestion in &output.suggestions {
+                println!("  try:  {suggestion}");
+            }
+        }
+    }
+
+    // Exit code based on decision
+    match output.decision.as_str() {
+        "allow" => 0,
+        "warn" => EXIT_WARNING,
+        "block" => EXIT_DENIED,
+        _ => 0,
+    }
 }
 
 /// Generate a sample configuration file
@@ -14700,6 +15038,103 @@ exclude = ["target/**"]
         let toon = toon_rust::encode(&json, None).expect("encode TOON payload");
         let decoded = toon_rust::decode(&toon, None).expect("decode TOON payload");
         assert_eq!(decoded, json);
+    }
+
+    // ========================================================================
+    // Classify command tests
+    // ========================================================================
+
+    #[test]
+    fn test_cli_parse_classify_basic() {
+        let cli = Cli::try_parse_from(["dcg", "classify", "git status"]).expect("parse");
+        if let Some(Command::Classify {
+            command,
+            format,
+            no_color,
+        }) = cli.command
+        {
+            assert_eq!(command, "git status");
+            assert_eq!(format, ClassifyFormat::Json); // default is json
+            assert!(!no_color);
+        } else {
+            unreachable!("Expected Classify");
+        }
+    }
+
+    #[test]
+    fn test_cli_parse_classify_with_format_text() {
+        let cli =
+            Cli::try_parse_from(["dcg", "classify", "--format", "text", "rm -rf /"]).expect("parse");
+        if let Some(Command::Classify {
+            command, format, ..
+        }) = cli.command
+        {
+            assert_eq!(command, "rm -rf /");
+            assert_eq!(format, ClassifyFormat::Text);
+        } else {
+            unreachable!("Expected Classify");
+        }
+    }
+
+    #[test]
+    fn test_cli_parse_classify_with_no_color() {
+        let cli =
+            Cli::try_parse_from(["dcg", "classify", "--no-color", "git push --force"]).expect("parse");
+        if let Some(Command::Classify { no_color, .. }) = cli.command {
+            assert!(no_color);
+        } else {
+            unreachable!("Expected Classify");
+        }
+    }
+
+    #[test]
+    fn test_classify_output_serialization() {
+        let output = ClassifyOutput {
+            schema_version: CLASSIFY_OUTPUT_SCHEMA_VERSION,
+            dcg_version: "v0.0.0-test".to_string(),
+            command: "rm -rf /".to_string(),
+            decision: "block".to_string(),
+            risk_level: "critical".to_string(),
+            risk_score: 1.0,
+            reasons: vec![ClassifyReason {
+                rule_id: "core.filesystem:rm-rf-root".to_string(),
+                severity: "critical".to_string(),
+                explanation: "Removes the root filesystem".to_string(),
+            }],
+            suggestions: vec!["rm -ri / (interactive mode)".to_string()],
+        };
+
+        let json = serde_json::to_string_pretty(&output).expect("serialize");
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("parse");
+        assert_eq!(parsed["schema_version"], 1);
+        assert_eq!(parsed["decision"], "block");
+        assert_eq!(parsed["risk_level"], "critical");
+        assert_eq!(parsed["risk_score"], 1.0);
+        assert_eq!(parsed["reasons"].as_array().unwrap().len(), 1);
+        assert_eq!(parsed["reasons"][0]["rule_id"], "core.filesystem:rm-rf-root");
+        assert_eq!(parsed["suggestions"].as_array().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn test_classify_output_safe_command_serialization() {
+        let output = ClassifyOutput {
+            schema_version: CLASSIFY_OUTPUT_SCHEMA_VERSION,
+            dcg_version: "v0.0.0-test".to_string(),
+            command: "git status".to_string(),
+            decision: "allow".to_string(),
+            risk_level: "safe".to_string(),
+            risk_score: 0.0,
+            reasons: vec![],
+            suggestions: vec![],
+        };
+
+        let json = serde_json::to_string_pretty(&output).expect("serialize");
+        let parsed: serde_json::Value = serde_json::from_str(&json).expect("parse");
+        assert_eq!(parsed["decision"], "allow");
+        assert_eq!(parsed["risk_level"], "safe");
+        assert_eq!(parsed["risk_score"], 0.0);
+        assert!(parsed["reasons"].as_array().unwrap().is_empty());
+        assert!(parsed["suggestions"].as_array().unwrap().is_empty());
     }
 
     // ========================================================================

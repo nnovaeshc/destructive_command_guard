@@ -2099,12 +2099,7 @@ pub fn run_command(cli: Cli) -> Result<(), Box<dyn std::error::Error>> {
             no_color,
         }) => {
             let robot_mode = cli.robot || std::env::var("DCG_ROBOT").is_ok();
-            let exit_code = classify_command(
-                &config,
-                &command,
-                format,
-                no_color || robot_mode,
-            );
+            let exit_code = classify_command(&config, &command, format, no_color || robot_mode);
             if exit_code != 0 {
                 std::process::exit(exit_code);
             }
@@ -4201,12 +4196,7 @@ fn test_command(
 /// - 0 for allow (safe or low risk)
 /// - `EXIT_DENIED` (1) for block (high or critical)
 /// - `EXIT_WARNING` (2) for warn (medium risk)
-fn classify_command(
-    config: &Config,
-    command: &str,
-    format: ClassifyFormat,
-    no_color: bool,
-) -> i32 {
+fn classify_command(config: &Config, command: &str, format: ClassifyFormat, no_color: bool) -> i32 {
     // Build effective config (no extra packs for classify — uses current config as-is)
     let effective_config = config.clone();
 
@@ -4270,10 +4260,7 @@ fn classify_command(
             }
         }
         EvaluationDecision::Deny => {
-            let severity = result
-                .pattern_info
-                .as_ref()
-                .and_then(|info| info.severity);
+            let severity = result.pattern_info.as_ref().and_then(|info| info.severity);
             let effective_mode = result.effective_mode.unwrap_or(DecisionMode::Deny);
 
             // Build reasons from pattern info
@@ -4286,10 +4273,7 @@ fn classify_command(
                         .as_ref()
                         .and_then(|p| info.pattern_name.as_ref().map(|n| format!("{p}:{n}")))
                         .unwrap_or_else(|| "unknown".to_string());
-                    let severity_str = info
-                        .severity
-                        .map_or("high", |s| s.label())
-                        .to_string();
+                    let severity_str = info.severity.map_or("high", |s| s.label()).to_string();
                     let explanation = info
                         .explanation
                         .clone()
@@ -15063,8 +15047,8 @@ exclude = ["target/**"]
 
     #[test]
     fn test_cli_parse_classify_with_format_text() {
-        let cli =
-            Cli::try_parse_from(["dcg", "classify", "--format", "text", "rm -rf /"]).expect("parse");
+        let cli = Cli::try_parse_from(["dcg", "classify", "--format", "text", "rm -rf /"])
+            .expect("parse");
         if let Some(Command::Classify {
             command, format, ..
         }) = cli.command
@@ -15078,8 +15062,8 @@ exclude = ["target/**"]
 
     #[test]
     fn test_cli_parse_classify_with_no_color() {
-        let cli =
-            Cli::try_parse_from(["dcg", "classify", "--no-color", "git push --force"]).expect("parse");
+        let cli = Cli::try_parse_from(["dcg", "classify", "--no-color", "git push --force"])
+            .expect("parse");
         if let Some(Command::Classify { no_color, .. }) = cli.command {
             assert!(no_color);
         } else {
@@ -15111,7 +15095,10 @@ exclude = ["target/**"]
         assert_eq!(parsed["risk_level"], "critical");
         assert_eq!(parsed["risk_score"], 1.0);
         assert_eq!(parsed["reasons"].as_array().unwrap().len(), 1);
-        assert_eq!(parsed["reasons"][0]["rule_id"], "core.filesystem:rm-rf-root");
+        assert_eq!(
+            parsed["reasons"][0]["rule_id"],
+            "core.filesystem:rm-rf-root"
+        );
         assert_eq!(parsed["suggestions"].as_array().unwrap().len(), 1);
     }
 

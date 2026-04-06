@@ -119,54 +119,18 @@ This project began as a Python script by Jeffrey Emanuel, who recognized that AI
 
 The initial Rust port by Darin maintained pattern compatibility with the original Python implementation while adding sub-millisecond execution through SIMD-accelerated filtering and lazy-compiled regex patterns. Jeffrey subsequently expanded the Rust codebase dramatically to add the features described above.
 
-## Why This Exists
+## Escape Hatch / Bypass
 
-AI coding agents are powerful but fallible. They can accidentally run destructive commands that wipe out hours of uncommitted work, drop database tables, or delete critical files. Common scenarios include:
+If dcg is blocking something you genuinely need to run:
 
-- **"Let me clean up the build artifacts"** → `rm -rf ./src` (typo)
-- **"I'll reset to the last commit"** → `git reset --hard` (destroys uncommitted changes)
-- **"Let me fix the merge conflict"** → `git checkout -- .` (discards all modifications)
-- **"I'll clean up untracked files"** → `git clean -fd` (permanently deletes untracked files)
+| Method | Scope | How |
+|--------|-------|-----|
+| **Env var bypass** | Single command | `DCG_BYPASS=1 <command>` |
+| **Allow-once code** | Single command | Copy the short code from the block message, run `dcg allow-once <code>` |
+| **Permanent allowlist** | Rule or command | `dcg allowlist add core.git:reset-hard -r "reason"` |
+| **Remove the hook** | All commands | Delete or comment out the dcg entry in `~/.claude/settings.json` (or equivalent for your agent) |
 
-This hook intercepts dangerous commands *before* execution and blocks them with a clear explanation, giving you a chance to stash your changes first, or to consciously proceed by running the command manually.
-
-## What It Blocks
-
-**Git commands that destroy uncommitted work:**
-- `git reset --hard` / `git reset --merge` - destroys uncommitted changes
-- `git checkout -- <file>` - discards file modifications
-- `git restore <file>` (without `--staged`) - discards uncommitted changes
-- `git clean -f` - permanently deletes untracked files
-
-**Git commands that can destroy remote history:**
-- `git push --force` / `git push -f` - overwrites remote commits
-- `git branch -D` - force-deletes branches without merge check
-
-**Git commands that destroy stashed work:**
-- `git stash drop` / `git stash clear` - permanently deletes stashes
-
-**Filesystem commands:**
-- `rm -rf` on any path outside `/tmp`, `/var/tmp`, or `$TMPDIR`
-
-**Heredoc and inline-script scanning (AST-based):**
-- Blocks destructive operations embedded inside heredocs, here-strings, and inline scripts
-  (e.g., `python -c`, `bash -c`, `node -e`)
-- Supported languages: bash, python, javascript, typescript, ruby, perl, go
-- Fail-open on parse errors/timeouts to avoid breaking workflows
-
-## What It Allows
-
-**Safe git operations pass through silently:**
-- `git status`, `git log`, `git diff`, `git add`, `git commit`, `git push`, `git pull`, `git fetch`
-- `git branch -d` (safe delete with merge check)
-- `git stash`, `git stash pop`, `git stash list`
-
-**Explicitly safe patterns:**
-- `git checkout -b <branch>` - creating new branches
-- `git checkout --orphan <branch>` - creating orphan branches
-- `git restore --staged <file>` - unstaging (safe, doesn't touch working tree)
-- `git clean -n` / `git clean --dry-run` - preview mode
-- `rm -rf /tmp/*`, `rm -rf /var/tmp/*`, `rm -rf $TMPDIR/*` - temp directory cleanup
+`DCG_BYPASS=1` disables all protection for that invocation. Use it sparingly and prefer allowlists for recurring needs.
 
 ## Modular Pack System
 
@@ -666,15 +630,7 @@ The easiest way to install is using the install script, which downloads a prebui
 curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/destructive_command_guard/main/install.sh?$(date +%s)" | bash -s -- --easy-mode
 ```
 
-Easy mode automatically:
-- Updates your PATH in shell rc files
-- Removes the legacy Python predecessor (if present)
-- Configures Claude Code hooks (creates config if needed)
-- Configures Gemini CLI hooks (if Gemini CLI is installed)
-- Configures GitHub Copilot CLI hooks in `.github/hooks/dcg.json` (if Copilot is installed and you're in a git repo)
-- Configures Aider (enables git hooks via `git-commit-verify: true`)
-- Configures Codex CLI hooks (if Codex CLI is installed)
-- Detects Continue (no auto-config; lacks shell command hooks)
+Easy mode auto-detects your platform, downloads the right binary, verifies SHA256 checksums, configures all supported AI agent hooks (Claude Code, Gemini CLI, Copilot CLI, Aider, Codex CLI), and updates your PATH.
 
 **Other options:**
 
@@ -710,33 +666,20 @@ curl -fsSL "https://raw.githubusercontent.com/Dicklesworthstone/destructive_comm
 
 > **Note:** If you have [gum](https://github.com/charmbracelet/gum) installed, the installer will use it for fancy terminal formatting.
 
-The install script:
-- Automatically detects your OS and architecture
-- Downloads the appropriate prebuilt binary
-- Verifies SHA256 checksums for security
-- Verifies Sigstore cosign bundles when available (falls back to checksum-only if cosign is missing)
-- Falls back to building from source if no prebuilt is available
-- Detects and removes legacy Python predecessor (`git_safety_guard.py`)
-- Configures Claude Code hooks (creates config directory if needed)
-- Configures Gemini CLI hooks (if already installed)
-- Configures GitHub Copilot CLI hooks in `.github/hooks/dcg.json` (if installed and run from a git repo)
-- Configures Aider (enables `git-commit-verify` for git hook support)
-- Configures Codex CLI hooks (if Codex CLI is installed)
-- Detects Continue (reports it has no shell command hooks)
-- Offers to update your PATH
-- Skips agent configuration when `--no-configure` is provided
+The installer also verifies Sigstore cosign bundles when available (falls back to checksum-only), falls back to building from source if no prebuilt is available, and removes the legacy Python predecessor (`git_safety_guard.py`) if present.
 
-> **Note on Aider:** Aider does not have PreToolUse-style shell command interception like Claude Code. The installer enables `git-commit-verify: true` in `~/.aider.conf.yml`, which ensures git hooks run (Aider defaults to bypassing them). For full protection, install dcg as a [git pre-commit hook](docs/scan-precommit-guide.md).
+<details>
+<summary>Agent-specific notes</summary>
 
-> **Note on Continue:** Continue does not have shell command interception hooks. The installer detects Continue installations but cannot auto-configure protection. For dcg protection with Continue, install dcg as a [git pre-commit hook](docs/scan-precommit-guide.md).
+- **Aider:** No PreToolUse-style interception. The installer enables `git-commit-verify: true` in `~/.aider.conf.yml` so git hooks run. For full protection, install dcg as a [git pre-commit hook](docs/scan-precommit-guide.md).
+- **Continue:** No shell command interception hooks. The installer detects Continue but cannot auto-configure protection. Use a [git pre-commit hook](docs/scan-precommit-guide.md) instead.
+- **Codex CLI:** Experimental PreToolUse hooks via `~/.codex/hooks.json`. Wire format is compatible with Claude Code. Caveat: the model can write scripts to disk to bypass hook-based blocking.
+- **GitHub Copilot CLI:** Hooks are repository-local (`.github/hooks/*.json`). Run the installer from each repository where you want protection.
+- **OpenCode:** Not auto-configured. Requires a Bun-based plugin with `"tool.execute.before"` hook key. A working community plugin: [aspiers/ai-config/dcg-guard.js](https://github.com/aspiers/ai-config/blob/main/.config/opencode/plugins/dcg-guard.js). (Avoid [jms830/opencode-dcg-plugin](https://github.com/jms830/opencode-dcg-plugin) -- it sends wrong JSON field names.)
 
-> **Note on Codex CLI:** Codex CLI now supports experimental PreToolUse hooks via `~/.codex/hooks.json`. The installer auto-configures dcg as a Bash command hook. The hook wire format is compatible with Claude Code's protocol, so dcg handles both identically. **Caveat:** The model can still work around hook-based blocking by writing its own script to disk and then running that script with Bash, so treat this as a useful guardrail rather than a complete enforcement boundary.
+</details>
 
-> **Note on GitHub Copilot CLI:** Copilot hooks are repository-local (`.github/hooks/*.json`) and loaded from the current working directory. Run the installer from each repository where you want protection so it can create/merge `.github/hooks/dcg.json`.
-
-> **Note on OpenCode:** The installer does not auto-configure OpenCode. OpenCode uses Bun-based plugins with a `"tool.execute.before"` hook key. Your plugin must send dcg the correct JSON format on stdin: `{"tool_name":"Bash","tool_input":{"command":"..."}}`. A working community plugin is available at [aspiers/ai-config/dcg-guard.js](https://github.com/aspiers/ai-config/blob/main/.config/opencode/plugins/dcg-guard.js). **Note:** An older plugin ([jms830/opencode-dcg-plugin](https://github.com/jms830/opencode-dcg-plugin)) sends the wrong JSON field names and silently allows all commands—do not use it.
-
-> **Recommended:** After installing, run `dcg setup` (or re-run the installer) to add a [shell startup check](#hook-silently-removed-recommended-add-shell-startup-check) that warns you if the dcg hook is ever silently removed from `~/.claude/settings.json`.
+> **Recommended:** After installing, run `dcg setup` to add a [shell startup check](#hook-silently-removed-recommended-add-shell-startup-check) that warns you if the dcg hook is ever silently removed from `~/.claude/settings.json`.
 
 ### From source (requires Rust nightly)
 
@@ -1372,24 +1315,14 @@ This is logged and visible in git history. For permanent exceptions, use allowli
 
 ## How It Works
 
-1. Claude Code, Gemini CLI, or GitHub Copilot CLI invokes the hook before executing a shell command
-2. The hook receives the command as JSON on stdin
-3. Commands are normalized (e.g., `/usr/bin/git` becomes `git`)
-4. Safe patterns are checked first (whitelist approach)
-5. Destructive patterns are checked second (blacklist approach)
-6. If destructive: outputs JSON denial with explanation
-7. If safe: exits silently (no output = allow)
+Your AI agent invokes dcg as a PreToolUse hook before executing each shell command. The hook receives the command as JSON on stdin and runs through a four-stage pipeline:
 
-The hook is designed for minimal latency with sub-millisecond execution on typical commands.
+1. **JSON Parsing** -- Validates the hook payload (Claude/Gemini/Copilot variants), extracts the command string. Non-shell tools are immediately allowed.
+2. **Normalization** -- Strips absolute paths (`/usr/bin/git` becomes `git`) while preserving arguments.
+3. **Quick Reject** -- O(n) substring search for keywords like "git" or "rm". Commands without these substrings skip regex matching entirely (handles 99%+ of non-destructive commands).
+4. **Pattern Matching** -- Safe patterns checked first (match = allow). Destructive patterns checked second (match = deny with explanation). No match on either = allow.
 
-### Output Behavior
-
-The hook uses two separate output channels:
-
-- **stdout (JSON)**: Hook protocol response (Claude-compatible `hookSpecificOutput`, Gemini-compatible `decision/reason`, or Copilot-compatible `continue: false` + denial fields). On allow, outputs nothing.
-- **stderr (colorful text)**: A human-readable warning when commands are blocked. Colors are automatically disabled when stderr is not a TTY (e.g., when piped to a file).
-
-This dual-output design ensures the hook protocol works correctly while still providing immediate visual feedback to users watching the terminal.
+If blocked, dcg outputs a JSON denial on stdout and a colorful human-readable warning on stderr. If allowed, dcg exits silently (no output). Colors are automatically disabled when stderr is not a TTY.
 
 ## Architecture
 
@@ -1487,30 +1420,6 @@ The context classifier uses a multi-pass approach:
 4. **Span Annotation**: Tag each character range with its SpanKind
 
 This approach achieves a significant reduction in false positives while maintaining the zero-false-negatives philosophy for actual command execution.
-
-### Processing Pipeline
-
-**Stage 1: JSON Parsing**
-- Reads the hook input from stdin
-- Validates supported hook payload shapes (Claude/Augment/Copilot variants)
-- Extracts command string from `tool_input.command` or Copilot `toolInput/toolArgs`
-- Non-shell tools are immediately allowed (no output)
-
-**Stage 2: Command Normalization**
-- Strips absolute paths from `git` and `rm` binaries
-- `/usr/bin/git status` → `git status`
-- `/bin/rm -rf /tmp/foo` → `rm -rf /tmp/foo`
-- Uses regex with lookahead to preserve arguments containing paths
-
-**Stage 3: Quick Rejection Filter**
-- O(n) substring search for "git" or "rm" in the command
-- Commands without these substrings bypass regex matching entirely
-- Handles 99%+ of non-destructive commands (ls, cat, cargo, npm, etc.)
-
-**Stage 4: Pattern Matching**
-- Safe patterns checked first (short-circuit on match → allow)
-- Destructive patterns checked second (match → deny with reason)
-- No match on either → default allow
 
 ## Design Principles
 
@@ -2279,11 +2188,11 @@ Recursive forced deletion is one of the most dangerous filesystem operations. Ev
 
 **Q: Can I add custom patterns?**
 
-Currently, patterns are compiled into the binary. For custom patterns, fork the repository and modify `SAFE_PATTERNS` or `DESTRUCTIVE_PATTERNS` in `src/main.rs`.
+Yes. Create YAML pack files and point to them in your config. See the [Custom Packs](#custom-packs) section and [`docs/custom-packs.md`](docs/custom-packs.md) for the schema and examples.
 
 **Q: What if I really need to run a blocked command?**
 
-The block message instructs the AI to ask you for explicit permission. You can then run the command manually in a separate terminal, ensuring you've made a conscious decision.
+See [Escape Hatch / Bypass](#escape-hatch--bypass). Options include `DCG_BYPASS=1`, allow-once codes, permanent allowlists, or running the command manually in a separate terminal.
 
 **Q: Does this work with other AI coding tools?**
 
@@ -2291,7 +2200,7 @@ Yes. dcg natively supports Claude Code, Gemini CLI, and GitHub Copilot CLI hook 
 
 **Q: What about database, Docker, Kubernetes, and cloud commands?**
 
-dcg already includes comprehensive packs for all of these! The modular pack system covers databases (PostgreSQL, MySQL, MongoDB, Redis, SQLite), containers (Docker, Podman, docker-compose), Kubernetes (kubectl, Helm, Kustomize), and all major cloud providers (AWS, GCP, Azure) including their container registries, secrets management services, and logging infrastructure. Enable the packs you need in your config. If you encounter a destructive command that should be blocked, please file an issue.
+dcg includes 49+ packs covering all of these. See the [Modular Pack System](#modular-pack-system) section for the full list. Enable the packs you need in your config.
 
 ## Contributing
 

@@ -675,7 +675,7 @@ The installer also verifies Sigstore cosign bundles when available (falls back t
 - **Continue:** No shell command interception hooks. The installer detects Continue but cannot auto-configure protection. Use a [git pre-commit hook](docs/scan-precommit-guide.md) instead.
 - **Codex CLI:** Experimental PreToolUse hooks via `~/.codex/hooks.json`. Wire format is compatible with Claude Code. Caveat: the model can write scripts to disk to bypass hook-based blocking.
 - **GitHub Copilot CLI:** Hooks are repository-local (`.github/hooks/*.json`). Run the installer from each repository where you want protection.
-- **OpenCode:** Not auto-configured. Requires a Bun-based plugin with `"tool.execute.before"` hook key. A working community plugin: [aspiers/ai-config/dcg-guard.js](https://github.com/aspiers/ai-config/blob/main/.config/opencode/plugins/dcg-guard.js). (Avoid [jms830/opencode-dcg-plugin](https://github.com/jms830/opencode-dcg-plugin) -- it sends wrong JSON field names.)
+- **OpenCode:** Not auto-configured. Requires a Bun-based plugin with `"tool.execute.before"` hook key. A working community plugin: [aspiers/ai-config/dcg-guard.js](https://github.com/aspiers/ai-config/blob/main/.config/opencode/plugins/dcg-guard.js).
 
 </details>
 

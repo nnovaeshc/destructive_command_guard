@@ -195,7 +195,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // system prune - removes all unused data
         destructive_pattern!(
             "system-prune",
-            r"docker\s+system\s+prune",
+            r"docker\b.*?\bsystem\s+prune",
             "docker system prune removes ALL unused containers, networks, images. Use 'docker system df' to preview.",
             High,
             "docker system prune is Docker's most aggressive cleanup command. It removes:\n\n\
@@ -216,7 +216,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // volume prune - removes all unused volumes
         destructive_pattern!(
             "volume-prune",
-            r"docker\s+volume\s+prune",
+            r"docker\b.*?\bvolume\s+prune",
             "docker volume prune removes ALL unused volumes and their data permanently.",
             High,
             "docker volume prune permanently deletes ALL volumes not currently attached \
@@ -235,7 +235,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // network prune - removes all unused networks
         destructive_pattern!(
             "network-prune",
-            r"docker\s+network\s+prune",
+            r"docker\b.*?\bnetwork\s+prune",
             "docker network prune removes ALL unused networks.",
             High,
             "docker network prune removes all user-defined networks not used by any container. \
@@ -253,7 +253,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // image prune - removes unused images (Medium: only affects unused images)
         destructive_pattern!(
             "image-prune",
-            r"docker\s+image\s+prune",
+            r"docker\b.*?\bimage\s+prune",
             "docker image prune removes unused images. Use 'docker images' to review first.",
             Medium,
             "docker image prune removes 'dangling' images (untagged layers). \
@@ -270,7 +270,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // container prune - removes stopped containers (Medium: only affects stopped)
         destructive_pattern!(
             "container-prune",
-            r"docker\s+container\s+prune",
+            r"docker\b.*?\bcontainer\s+prune",
             "docker container prune removes ALL stopped containers.",
             Medium,
             "docker container prune removes all stopped containers. This is relatively \
@@ -287,7 +287,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // rm -f (force remove containers)
         destructive_pattern!(
             "rm-force",
-            r"docker\s+rm\s+.*(?:-[a-zA-Z0-9]*f|--force)",
+            r"docker\b.*?\brm\s+.*(?:-[a-zA-Z0-9]*f|--force)",
             "docker rm -f forcibly removes containers, potentially losing data.",
             High,
             "docker rm -f forcibly stops and removes containers. This is dangerous because:\n\n\
@@ -305,7 +305,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // rmi -f (force remove images)
         destructive_pattern!(
             "rmi-force",
-            r"docker\s+rmi\s+.*(?:-[a-zA-Z0-9]*f|--force)",
+            r"docker\b.*?\brmi\s+.*(?:-[a-zA-Z0-9]*f|--force)",
             "docker rmi -f forcibly removes images even if in use.",
             High,
             "docker rmi -f forcibly removes images, even if containers are using them. \
@@ -322,7 +322,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // volume rm
         destructive_pattern!(
             "volume-rm",
-            r"docker\s+volume\s+rm",
+            r"docker\b.*?\bvolume\s+rm",
             "docker volume rm permanently deletes volumes and their data.",
             High,
             "docker volume rm permanently deletes named volumes and all data stored in them. \
@@ -341,7 +341,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // stop/kill all containers pattern
         destructive_pattern!(
             "stop-all",
-            r"docker\s+(?:stop|kill)\s+\$\(docker\s+ps",
+            r"docker\b.*?\b(?:stop|kill)\s+\$\(docker\s+ps",
             "Stopping/killing all containers can disrupt services. Be specific about which containers.",
             High,
             "This pattern stops or kills ALL running containers on the system. \
@@ -364,6 +364,37 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
 mod tests {
     use super::*;
     use crate::packs::test_helpers::*;
+
+    #[test]
+    fn docker_patterns_match_with_global_flags() {
+        // Same class bug as cloud packs: Docker CLI global flags
+        // (`--context`, `--host`, `--config`, `--debug`, `--log-level`,
+        // `--tls*`) between `docker` and the subcommand break every
+        // `docker\s+<sub>` pattern. Multi-context operators (users of
+        // remote Docker daemons, testing against staging + prod)
+        // regularly use `--context`, so this is mainline.
+        let pack = create_pack();
+        assert_blocks(
+            &pack,
+            "docker --context prod volume rm critical-vol",
+            "volume",
+        );
+        assert_blocks(
+            &pack,
+            "docker --host ssh://prod-host system prune --all",
+            "prune",
+        );
+        assert_blocks(
+            &pack,
+            "docker --config /tmp/dc --context prod rm -f prod-db",
+            "forcibly removes",
+        );
+        assert_blocks(
+            &pack,
+            "docker --log-level debug --context prod image prune --all",
+            "prune",
+        );
+    }
 
     #[test]
     fn test_rm_force() {

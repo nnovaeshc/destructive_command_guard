@@ -627,6 +627,37 @@ mod tests {
     use crate::packs::test_helpers::*;
 
     #[test]
+    fn safe_describe_list_get_patterns_also_match_with_global_flags() {
+        // Verify the generic `aws-describe`/`aws-list`/`aws-get` safe
+        // patterns still allowlist read-only commands when global flags
+        // precede the service. Previously the `aws\s+\S+\s+describe-`
+        // form was broken: `\S+` greedy-ate `--profile`, then
+        // `\s+describe-` tripped on the flag value.
+        let pack = create_pack();
+        assert_allows(
+            &pack,
+            "aws --profile prod ec2 describe-instances",
+        );
+        assert_allows(
+            &pack,
+            "aws --region us-east-1 --profile prod ec2 describe-volumes",
+        );
+        assert_allows(
+            &pack,
+            "aws --profile prod s3api list-buckets",
+        );
+        assert_allows(
+            &pack,
+            "aws --profile prod iam get-user",
+        );
+        // And a read-only command through a wrapper is also fine:
+        assert_allows(
+            &pack,
+            "aws-vault exec prod -- aws ec2 describe-instances",
+        );
+    }
+
+    #[test]
     fn existing_aws_patterns_also_match_with_global_flags() {
         // Class-bug sweep: the same `aws --profile / --region / --debug`
         // bypass that affected my new athena/glue patterns equally

@@ -29,26 +29,26 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // plan is safe (read-only)
-        safe_pattern!("terraform-plan", r"terraform\s+plan(?!\s+.*-destroy)"),
+        safe_pattern!("terraform-plan", r"terraform\b.*?\s+plan\b(?!\s+.*-destroy)"),
         // init is safe
-        safe_pattern!("terraform-init", r"terraform\s+init"),
+        safe_pattern!("terraform-init", r"terraform\b.*?\s+init\b"),
         // validate is safe
-        safe_pattern!("terraform-validate", r"terraform\s+validate"),
+        safe_pattern!("terraform-validate", r"terraform\b.*?\s+validate\b"),
         // fmt is safe
-        safe_pattern!("terraform-fmt", r"terraform\s+fmt"),
+        safe_pattern!("terraform-fmt", r"terraform\b.*?\s+fmt\b"),
         // show is safe
-        safe_pattern!("terraform-show", r"terraform\s+show"),
+        safe_pattern!("terraform-show", r"terraform\b.*?\s+show\b"),
         // output is safe
-        safe_pattern!("terraform-output", r"terraform\s+output"),
+        safe_pattern!("terraform-output", r"terraform\b.*?\s+output\b"),
         // state list/show are safe (read-only)
-        safe_pattern!("terraform-state-list", r"terraform\s+state\s+list"),
-        safe_pattern!("terraform-state-show", r"terraform\s+state\s+show"),
+        safe_pattern!("terraform-state-list", r"terraform\b.*?\bstate\s+list"),
+        safe_pattern!("terraform-state-show", r"terraform\b.*?\bstate\s+show"),
         // graph is safe
-        safe_pattern!("terraform-graph", r"terraform\s+graph"),
+        safe_pattern!("terraform-graph", r"terraform\b.*?\s+graph\b"),
         // version is safe
-        safe_pattern!("terraform-version", r"terraform\s+version"),
+        safe_pattern!("terraform-version", r"terraform\b.*?\s+version\b"),
         // providers is safe
-        safe_pattern!("terraform-providers", r"terraform\s+providers"),
+        safe_pattern!("terraform-providers", r"terraform\b.*?\s+providers\b"),
     ]
 }
 
@@ -57,7 +57,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // destroy
         destructive_pattern!(
             "destroy",
-            r"terraform\s+destroy",
+            r"terraform\b.*?\bdestroy\b",
             "terraform destroy removes ALL managed infrastructure. Use 'terraform plan -destroy' first.",
             Critical,
             "terraform destroy removes ALL managed infrastructure:\n\n\
@@ -70,7 +70,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // plan -destroy is a preview but can be scary
         destructive_pattern!(
             "plan-destroy",
-            r"terraform\s+plan\s+.*-destroy",
+            r"terraform\b.*?\bplan\s+.*-destroy",
             "terraform plan -destroy shows what would be destroyed. Review carefully before applying.",
             Medium,
             "terraform plan -destroy shows destruction preview:\n\n\
@@ -82,7 +82,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // apply with -auto-approve (skips confirmation)
         destructive_pattern!(
             "apply-auto-approve",
-            r"terraform\s+apply\s+.*-auto-approve",
+            r"terraform\b.*?\bapply\s+.*-auto-approve",
             "terraform apply -auto-approve skips confirmation. Remove -auto-approve for safety.",
             High,
             "terraform apply -auto-approve skips confirmation:\n\n\
@@ -94,7 +94,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // taint marks resource for recreation
         destructive_pattern!(
             "taint",
-            r"terraform\s+taint\b",
+            r"terraform\b.*?\btaint\b",
             "terraform taint marks a resource to be destroyed and recreated on next apply.",
             High,
             "terraform taint marks resource for recreation:\n\n\
@@ -107,7 +107,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // state rm removes from state (orphans resource)
         destructive_pattern!(
             "state-rm",
-            r"terraform\s+state\s+rm\b",
+            r"terraform\b.*?\bstate\s+rm\b",
             "terraform state rm removes resource from state without destroying it. Resource becomes unmanaged.",
             High,
             "terraform state rm orphans resources:\n\n\
@@ -120,7 +120,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // state mv can cause issues if done incorrectly
         destructive_pattern!(
             "state-mv",
-            r"terraform\s+state\s+mv\b",
+            r"terraform\b.*?\bstate\s+mv\b",
             "terraform state mv moves resources in state. Incorrect moves can cause resource recreation.",
             High,
             "terraform state mv moves resources in state:\n\n\
@@ -133,7 +133,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // force-unlock
         destructive_pattern!(
             "force-unlock",
-            r"terraform\s+force-unlock\b",
+            r"terraform\b.*?\bforce-unlock\b",
             "terraform force-unlock removes state lock. Only use if lock is stale.",
             High,
             "terraform force-unlock removes state locks:\n\n\
@@ -146,7 +146,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // workspace delete
         destructive_pattern!(
             "workspace-delete",
-            r"terraform\s+workspace\s+delete\b",
+            r"terraform\b.*?\bworkspace\s+delete\b",
             "terraform workspace delete removes a workspace. Ensure it's not in use.",
             Medium,
             "terraform workspace delete removes workspace:\n\n\
@@ -157,4 +157,62 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
              Destroy resources first: terraform destroy, then delete workspace"
         ),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::packs::test_helpers::*;
+
+    #[test]
+    fn terraform_patterns_match_with_chdir_flag() {
+        // Same class bug as cloud/container packs: terraform's
+        // `-chdir=<path>` global flag goes BEFORE the subcommand:
+        //
+        //   terraform -chdir=./environments/prod destroy -auto-approve
+        //
+        // With `terraform\s+destroy` the `\s+` can't skip over `-chdir=…`,
+        // so this destructive command escapes every rule. Enterprise
+        // multi-environment setups use -chdir routinely.
+        let pack = create_pack();
+        assert_blocks(
+            &pack,
+            "terraform -chdir=./environments/prod destroy -auto-approve",
+            "destroy",
+        );
+        assert_blocks(
+            &pack,
+            "terraform -chdir=./prod apply -auto-approve",
+            "auto-approve",
+        );
+        assert_blocks(
+            &pack,
+            "terraform -chdir=./prod state rm aws_instance.important",
+            "state",
+        );
+        assert_blocks(
+            &pack,
+            "terraform -chdir=./prod workspace delete prod-old",
+            "workspace",
+        );
+        assert_blocks(
+            &pack,
+            "terraform -chdir=./prod force-unlock abc123",
+            "force-unlock",
+        );
+    }
+
+    #[test]
+    fn terraform_safe_patterns_do_not_bypass_via_flag_value() {
+        // `-chdir=./plan-output` or `--out=plan` must not falsely
+        // match safe patterns and bypass destructive rules. `\s+<sub>\b`
+        // form fixes this.
+        let pack = create_pack();
+        assert_allows(&pack, "terraform plan");
+        assert_allows(&pack, "terraform -chdir=./prod plan");
+        assert_allows(&pack, "terraform show");
+        assert_allows(&pack, "terraform state list");
+        // Genuine destructive still blocks
+        assert_blocks(&pack, "terraform destroy -auto-approve", "destroy");
+    }
 }

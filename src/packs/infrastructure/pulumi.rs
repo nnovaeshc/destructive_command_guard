@@ -28,21 +28,21 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // preview is safe (read-only)
-        safe_pattern!("pulumi-preview", r"pulumi\s+preview"),
+        safe_pattern!("pulumi-preview", r"pulumi\b.*?\s+preview\b"),
         // stack ls/select/init are safe
-        safe_pattern!("pulumi-stack-ls", r"pulumi\s+stack\s+ls"),
-        safe_pattern!("pulumi-stack-select", r"pulumi\s+stack\s+select"),
-        safe_pattern!("pulumi-stack-init", r"pulumi\s+stack\s+init"),
+        safe_pattern!("pulumi-stack-ls", r"pulumi\b.*?\bstack\s+ls"),
+        safe_pattern!("pulumi-stack-select", r"pulumi\b.*?\bstack\s+select"),
+        safe_pattern!("pulumi-stack-init", r"pulumi\b.*?\bstack\s+init"),
         // config is safe
-        safe_pattern!("pulumi-config", r"pulumi\s+config"),
+        safe_pattern!("pulumi-config", r"pulumi\b.*?\s+config\b"),
         // whoami is safe
-        safe_pattern!("pulumi-whoami", r"pulumi\s+whoami"),
+        safe_pattern!("pulumi-whoami", r"pulumi\b.*?\s+whoami\b"),
         // version is safe
-        safe_pattern!("pulumi-version", r"pulumi\s+version"),
+        safe_pattern!("pulumi-version", r"pulumi\b.*?\s+version\b"),
         // about is safe
-        safe_pattern!("pulumi-about", r"pulumi\s+about"),
+        safe_pattern!("pulumi-about", r"pulumi\b.*?\s+about\b"),
         // logs is safe
-        safe_pattern!("pulumi-logs", r"pulumi\s+logs"),
+        safe_pattern!("pulumi-logs", r"pulumi\b.*?\s+logs\b"),
     ]
 }
 
@@ -51,7 +51,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // destroy
         destructive_pattern!(
             "destroy",
-            r"pulumi\s+destroy",
+            r"pulumi\b.*?\bdestroy\b",
             "pulumi destroy removes ALL managed infrastructure. Use 'pulumi preview --diff' first.",
             Critical,
             "pulumi destroy removes ALL managed infrastructure:\n\n\
@@ -64,7 +64,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // up with -y or --yes (auto-approve)
         destructive_pattern!(
             "up-yes",
-            r"pulumi\s+up\s+.*(?:-y\b|--yes\b)",
+            r"pulumi\b.*?\bup\s+.*(?:-y\b|--yes\b)",
             "pulumi up -y skips confirmation. Remove -y flag for safety.",
             High,
             "pulumi up -y skips confirmation:\n\n\
@@ -77,7 +77,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // state delete
         destructive_pattern!(
             "state-delete",
-            r"pulumi\s+state\s+delete",
+            r"pulumi\b.*?\bstate\s+delete",
             "pulumi state delete removes resource from state without destroying it.",
             High,
             "pulumi state delete orphans resources:\n\n\
@@ -90,7 +90,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // stack rm (remove stack)
         destructive_pattern!(
             "stack-rm",
-            r"pulumi\s+stack\s+rm",
+            r"pulumi\b.*?\bstack\s+rm",
             "pulumi stack rm removes the stack. Use --force only if stack is empty.",
             High,
             "pulumi stack rm removes the entire stack:\n\n\
@@ -103,7 +103,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // refresh with -y
         destructive_pattern!(
             "refresh-yes",
-            r"pulumi\s+refresh\s+.*(?:-y\b|--yes\b)",
+            r"pulumi\b.*?\brefresh\s+.*(?:-y\b|--yes\b)",
             "pulumi refresh -y auto-approves state changes. Review changes first.",
             Medium,
             "pulumi refresh -y auto-approves state sync:\n\n\
@@ -115,7 +115,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // cancel (cancels in-progress update)
         destructive_pattern!(
             "cancel",
-            r"pulumi\s+cancel",
+            r"pulumi\b.*?\bcancel\b",
             "pulumi cancel terminates an in-progress update, which may leave resources in inconsistent state.",
             High,
             "pulumi cancel stops in-progress operations:\n\n\
@@ -126,4 +126,39 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
              Use only when operation is stuck/hung"
         ),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::packs::test_helpers::*;
+
+    #[test]
+    fn pulumi_patterns_match_with_global_flags() {
+        // Pulumi global flags (`--cwd`, `--logflow`, `--logtostderr`,
+        // `--verbose`, `--profiling`, `--non-interactive`) between
+        // `pulumi` and the subcommand broke every pattern until the
+        // `pulumi\b.*?\b<sub>` sweep.
+        let pack = create_pack();
+        assert_blocks(
+            &pack,
+            "pulumi --cwd ./prod destroy",
+            "destroy",
+        );
+        assert_blocks(
+            &pack,
+            "pulumi --non-interactive --cwd ./prod up -y",
+            "-y",
+        );
+        assert_blocks(
+            &pack,
+            "pulumi --cwd ./prod state delete urn:pulumi:prod::db::aws:rds/instance:Instance::main",
+            "state",
+        );
+        assert_blocks(
+            &pack,
+            "pulumi --verbose --cwd ./prod stack rm prod-old",
+            "stack rm",
+        );
+    }
 }

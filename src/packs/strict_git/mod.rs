@@ -43,61 +43,61 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // Block ALL force pushes (including --force-with-lease)
         destructive_pattern!(
             "push-force-any",
-            r"git\s+push\s+.*(?:--force|--force-with-lease|-f\b)",
+            r"git\b.*?\bpush\s+.*(?:--force|--force-with-lease|-f\b)",
             "Force push (even with --force-with-lease) can rewrite remote history. Disabled in strict mode."
         ),
         // Block rebase (can rewrite history)
         destructive_pattern!(
             "rebase",
-            r"git\s+rebase\b",
+            r"git\b.*?\brebase\b",
             "git rebase rewrites commit history. Disabled in strict mode."
         ),
         // Block commit --amend (rewrites last commit)
         destructive_pattern!(
             "commit-amend",
-            r"git\s+commit\s+.*--amend",
+            r"git\b.*?\bcommit\s+.*--amend",
             "git commit --amend rewrites the last commit. Disabled in strict mode."
         ),
         // Block cherry-pick (can be misused)
         destructive_pattern!(
             "cherry-pick",
-            r"git\s+cherry-pick\b",
+            r"git\b.*?\bcherry-pick\b",
             "git cherry-pick can introduce duplicate commits. Review carefully."
         ),
         // Block filter-branch (rewrites entire history)
         destructive_pattern!(
             "filter-branch",
-            r"git\s+filter-branch\b",
+            r"git\b.*?\bfilter-branch\b",
             "git filter-branch rewrites entire repository history. Extremely dangerous!"
         ),
         // Block filter-repo (modern replacement for filter-branch)
         destructive_pattern!(
             "filter-repo",
-            r"git\s+filter-repo\b",
+            r"git\b.*?\bfilter-repo\b",
             "git filter-repo rewrites repository history. Review carefully."
         ),
         // Block reflog expire (can lose recovery points)
         destructive_pattern!(
             "reflog-expire",
-            r"git\s+reflog\s+expire",
+            r"git\b.*?\breflog\s+expire",
             "git reflog expire removes reflog entries needed for recovery."
         ),
         // Block gc with aggressive options
         destructive_pattern!(
             "gc-aggressive",
-            r"git\s+gc\s+.*--(?:aggressive|prune)",
+            r"git\b.*?\bgc\s+.*--(?:aggressive|prune)",
             "git gc with aggressive/prune options can remove recoverable objects."
         ),
         // Block worktree remove
         destructive_pattern!(
             "worktree-remove",
-            r"git\s+worktree\s+remove",
+            r"git\b.*?\bworktree\s+remove",
             "git worktree remove deletes a linked working tree."
         ),
         // Block submodule deinit
         destructive_pattern!(
             "submodule-deinit",
-            r"git\s+submodule\s+deinit",
+            r"git\b.*?\bsubmodule\s+deinit",
             "git submodule deinit removes submodule configuration."
         ),
         // Block git add . (stages everything, may include secrets, .env, build artifacts)
@@ -105,13 +105,13 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // "git add . && echo done" (bypass via shell chaining).
         destructive_pattern!(
             "add-all-dot",
-            r"git\s+add\s+\.(?:\s|$)",
+            r"git\b.*?\badd\s+\.(?:\s|$)",
             "git add . stages everything including secrets, .env files, and build artifacts. Use 'git add <specific-files>' instead."
         ),
         // Block git add -A / git add --all (same concern as git add .)
         destructive_pattern!(
             "add-all-flag",
-            r"git\s+add\s+(?:-A|--all)\b",
+            r"git\b.*?\badd\s+(?:-A|--all)\b",
             "git add -A/--all stages all changes including secrets, .env files, and build artifacts. Use 'git add <specific-files>' instead."
         ),
         // Block push to master
@@ -133,6 +133,53 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
 mod tests {
     use super::*;
     use crate::packs::test_helpers::*;
+
+    #[test]
+    fn strict_git_patterns_match_with_git_global_flags() {
+        // Same class bug as cloud/container packs: git's global flags
+        // (`-C <path>`, `-c key=value`, `--git-dir=`, `--work-tree=`,
+        // `--exec-path=`) go BEFORE the subcommand.  Every
+        // `git\s+<sub>` pattern failed to match these shapes.  Most
+        // impactful: `git -C /path/to/repo push --force` on a
+        // CI-server where operators drive multiple worktrees from a
+        // single invocation.
+        let pack = create_pack();
+        assert_blocks(
+            &pack,
+            "git -C /path/to/repo push origin --force",
+            "Force push",
+        );
+        assert_blocks(
+            &pack,
+            "git -c user.email=bot@corp.com rebase -i HEAD~3",
+            "rebase",
+        );
+        assert_blocks(
+            &pack,
+            "git --git-dir=/prod/.git commit --amend",
+            "commit --amend",
+        );
+        assert_blocks(
+            &pack,
+            "git -C /repo filter-branch --tree-filter 'rm -f secret' HEAD",
+            "filter-branch",
+        );
+        assert_blocks(
+            &pack,
+            "git -C ./submodule worktree remove dead",
+            "worktree",
+        );
+        assert_blocks(
+            &pack,
+            "git -C /prod add .",
+            "stages everything",
+        );
+        assert_blocks(
+            &pack,
+            "git -C /prod add -A",
+            "stages all changes",
+        );
+    }
 
     #[test]
     fn test_add_all_dot() {

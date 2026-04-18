@@ -90,7 +90,10 @@ fn create_safe_patterns() -> Vec<SafePattern> {
         // like `DELETE FROM t WHERE id=1; DROP TABLE t`.
         safe_pattern!(
             "athena-delete-with-where",
-            r#"(?i)aws\s+athena\s+start-query-execution\b.*?--query-string[=\s]+['"]?\s*DELETE\s+FROM\s+[A-Za-z_][A-Za-z0-9_.]*\s+.*?\bWHERE\b(?!.*;)"#
+            // Table identifier is `\S+` to cover bare names (`t`),
+            // schema-qualified names (`db.t`), and quoted identifiers
+            // (`"my-t"`, `` `my-t` ``) in a single cheap match.
+            r#"(?i)aws\s+athena\s+start-query-execution\b.*?--query-string[=\s]+['"]?\s*DELETE\s+FROM\s+\S+\s+.*?\bWHERE\b(?!.*;)"#
         ),
     ]
 }
@@ -439,7 +442,9 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
             // Match DELETE FROM <table> with no WHERE later in the query.
             // (The safe `athena-delete-with-where` pattern short-circuits
             // `matches_safe` first, so this only fires on unscoped DELETE.)
-            r"(?i)aws\s+athena\s+start-query-execution\b.*\bDELETE\s+FROM\s+[A-Za-z_][A-Za-z0-9_.]*",
+            // `\S+` is deliberately broad so quoted identifiers like
+            // `"my-table"` or `` `my-table` `` can't evade the block.
+            r"(?i)aws\s+athena\s+start-query-execution\b.*\bDELETE\s+FROM\s+\S+",
             "Athena DELETE without a WHERE clause removes all rows from the target table.",
             Critical,
             "DELETE FROM <table> without a WHERE clause:\n\n\
@@ -785,6 +790,37 @@ mod tests {
         assert_allows(
             &pack,
             "aws athena start-query-execution --query-string 'DELETE FROM reporting.events WHERE ts < now() - interval 30 day'",
+        );
+    }
+
+    #[test]
+    fn athena_delete_with_quoted_identifiers_is_still_matched() {
+        // Regression: quoted table identifiers (backticks, double-quotes,
+        // hyphenated names) must not evade either the safe allowlist for
+        // DELETE-WITH-WHERE or the destructive block for DELETE-WITHOUT-WHERE.
+        let pack = create_pack();
+
+        // Double-quoted, WHERE present → safe.
+        assert_allows(
+            &pack,
+            "aws athena start-query-execution --query-string 'DELETE FROM \"reporting-events\" WHERE ts < now()'",
+        );
+        // Backtick-quoted, WHERE present → safe.
+        assert_allows(
+            &pack,
+            "aws athena start-query-execution --query-string 'DELETE FROM `reporting-events` WHERE ts < now()'",
+        );
+        // Double-quoted, WHERE missing → blocked.
+        assert_blocks(
+            &pack,
+            "aws athena start-query-execution --query-string 'DELETE FROM \"reporting-events\"'",
+            "DELETE without a WHERE clause",
+        );
+        // Backtick-quoted, WHERE missing → blocked.
+        assert_blocks(
+            &pack,
+            "aws athena start-query-execution --query-string 'DELETE FROM `reporting-events`'",
+            "DELETE without a WHERE clause",
         );
     }
 

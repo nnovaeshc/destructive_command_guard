@@ -76,6 +76,8 @@ These patterns match potentially destructive commands:
 | `athena-query-drop-database` | Athena `DROP DATABASE`/`SCHEMA` removes the database from the Glue catalog. | critical |
 | `athena-query-drop-table` | Athena `DROP TABLE`/`VIEW` removes the table definition from the Glue catalog. | high |
 | `athena-query-truncate` | Athena `TRUNCATE TABLE` deletes all rows from an Iceberg table. | critical |
+| `athena-query-string-from-file` | Athena `--query-string file://…`/`fileb://…` loads the SQL from disk, so DCG can't grep the statement. Use inline `--query-string '…'` instead. | high |
+| `athena-cli-input-file` | Athena `start-query-execution --cli-input-json file://…`/`--cli-input-yaml file://…` loads the full invocation from disk, hiding `QueryString` from inspection. Inline `--cli-input-json '{…}'` is still allowed because the broad `DROP`/`TRUNCATE`/`DELETE` rules can still see its contents. | high |
 | `athena-query-delete-without-where` | Athena `DELETE` without a `WHERE` clause removes all rows from the target table. | critical |
 | `glue-delete-database` | aws glue delete-database removes the database and every table definition inside it. | critical |
 | `glue-delete-table` | aws glue delete-table removes the table definition from the catalog. | high |

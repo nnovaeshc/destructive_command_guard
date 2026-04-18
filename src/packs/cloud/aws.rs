@@ -870,6 +870,30 @@ mod tests {
     }
 
     #[test]
+    fn athena_cli_input_inline_json_still_grepped_by_existing_rules() {
+        // Regression: `--cli-input-json '{…}'` with INLINE JSON is
+        // visible on the command line, so destructive SQL inside the
+        // blob must still be caught by the broad DROP/TRUNCATE/DELETE
+        // patterns. The `athena-cli-input-file` rule is narrowed to
+        // file-backed forms only so it doesn't over-block legitimate
+        // inline usage — but the defense in depth comes from the
+        // existing per-verb destructive rules still firing.
+        let pack = create_pack();
+        // Safe inline JSON (SELECT): allowed.
+        assert_allows(
+            &pack,
+            r#"aws athena start-query-execution --cli-input-json '{"QueryString": "SELECT 1 FROM t"}'"#,
+        );
+        // Destructive inline JSON (DROP DATABASE): blocked by the
+        // existing broad DROP DATABASE rule, not the new file-backed rule.
+        assert_blocks(
+            &pack,
+            r#"aws athena start-query-execution --cli-input-json '{"QueryString": "DROP DATABASE prod"}'"#,
+            "DROP DATABASE",
+        );
+    }
+
+    #[test]
     fn athena_query_string_via_file_protocol_is_flagged() {
         // Regression: AWS CLI's `file://` and `fileb://` protocols load
         // the parameter value from a file, and `--cli-input-json` /

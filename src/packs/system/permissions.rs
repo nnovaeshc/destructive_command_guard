@@ -168,3 +168,54 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
     ]
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::packs::test_helpers::*;
+
+    #[test]
+    fn test_pack_creation() {
+        let pack = create_pack();
+        assert_eq!(pack.id, "system.permissions");
+        assert_patterns_compile(&pack);
+        assert_all_patterns_have_reasons(&pack);
+        assert_unique_pattern_names(&pack);
+    }
+
+    #[test]
+    fn quote_bypass_does_not_evade_system_dir_block() {
+        // Shell unquotes "/etc" to /etc before the command sees it, so the
+        // destructive form must match the quoted spelling too. Use mode 0755
+        // so `chmod-777` (which would match first for 0777) doesn't shadow
+        // the `chmod-recursive-root` attribution we want to verify.
+        let pack = create_pack();
+        assert_blocks_with_pattern(
+            &pack,
+            "chmod -R 0755 \"/etc\"",
+            "chmod-recursive-root",
+        );
+        assert_blocks_with_pattern(
+            &pack,
+            "chmod -R 0755 '/usr/local'",
+            "chmod-recursive-root",
+        );
+        assert_blocks_with_pattern(
+            &pack,
+            "chown -R user:user \"/var\"",
+            "chown-recursive-root",
+        );
+        assert_blocks_with_pattern(
+            &pack,
+            "chown --recursive root '/etc'",
+            "chown-recursive-root",
+        );
+        assert_blocks_with_pattern(
+            &pack,
+            "setfacl -R -m u:app:rwx \"/etc\"",
+            "setfacl-all",
+        );
+        // Unquoted still works.
+        assert_blocks_with_pattern(&pack, "chmod -R 0755 /etc", "chmod-recursive-root");
+    }
+}

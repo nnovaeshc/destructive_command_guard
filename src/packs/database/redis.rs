@@ -27,19 +27,43 @@ pub fn create_pack() -> Pack {
 }
 
 fn create_safe_patterns() -> Vec<SafePattern> {
+    // Each safe pattern carries a negative lookahead that refuses to match when
+    // ANY destructive Redis keyword is also present in the command. Without
+    // this, a compound command like `redis-cli FLUSHALL && redis-cli GET key`
+    // would be whitelisted by the safe `GET` match and skip the destructive
+    // FLUSHALL check. The forbidden set mirrors the destructive patterns below.
     vec![
         // GET/MGET operations are safe
-        safe_pattern!("redis-get", r"(?i)\b(?:GET|MGET)\b"),
+        safe_pattern!(
+            "redis-get",
+            r"(?i)(?!.*\b(?:FLUSHALL|FLUSHDB|DEBUG|SHUTDOWN|CONFIG\s+(?:SET|REWRITE))\b)\b(?:GET|MGET)\b"
+        ),
         // SCAN is safe (cursor-based iteration)
-        safe_pattern!("redis-scan", r"(?i)\bSCAN\b"),
+        safe_pattern!(
+            "redis-scan",
+            r"(?i)(?!.*\b(?:FLUSHALL|FLUSHDB|DEBUG|SHUTDOWN|CONFIG\s+(?:SET|REWRITE))\b)\bSCAN\b"
+        ),
         // INFO is safe (server info)
-        safe_pattern!("redis-info", r"(?i)\bINFO\b"),
+        safe_pattern!(
+            "redis-info",
+            r"(?i)(?!.*\b(?:FLUSHALL|FLUSHDB|DEBUG|SHUTDOWN|CONFIG\s+(?:SET|REWRITE))\b)\bINFO\b"
+        ),
         // KEYS (read-only, though potentially slow)
-        safe_pattern!("redis-keys", r"(?i)\bKEYS\b"),
+        safe_pattern!(
+            "redis-keys",
+            r"(?i)(?!.*\b(?:FLUSHALL|FLUSHDB|DEBUG|SHUTDOWN|CONFIG\s+(?:SET|REWRITE))\b)\bKEYS\b"
+        ),
         // DBSIZE is safe
-        safe_pattern!("redis-dbsize", r"(?i)\bDBSIZE\b"),
-        // CONFIG GET is read-only
-        safe_pattern!("redis-config-get", r"(?i)\bCONFIG\s+GET\b"),
+        safe_pattern!(
+            "redis-dbsize",
+            r"(?i)(?!.*\b(?:FLUSHALL|FLUSHDB|DEBUG|SHUTDOWN|CONFIG\s+(?:SET|REWRITE))\b)\bDBSIZE\b"
+        ),
+        // CONFIG GET is read-only (only meaningful if no destructive CONFIG SET).
+        // The negative lookahead already filters CONFIG SET/REWRITE.
+        safe_pattern!(
+            "redis-config-get",
+            r"(?i)(?!.*\b(?:FLUSHALL|FLUSHDB|DEBUG|SHUTDOWN|CONFIG\s+(?:SET|REWRITE))\b)\bCONFIG\s+GET\b"
+        ),
     ]
 }
 
@@ -217,4 +241,60 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
              Ensure no dangerous CONFIG SET changes are pending before rewriting."
         ),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::packs::test_helpers::*;
+
+    #[test]
+    fn test_pack_creation() {
+        let pack = create_pack();
+        assert_eq!(pack.id, "database.redis");
+        assert_patterns_compile(&pack);
+        assert_all_patterns_have_reasons(&pack);
+        assert_unique_pattern_names(&pack);
+    }
+
+    #[test]
+    fn safe_get_with_no_destructive_keyword_is_allowed() {
+        let pack = create_pack();
+        // Bare `redis-cli GET foo` has no destructive keyword, so the pack
+        // doesn't even run — but the safe pattern itself must still match
+        // under the lookahead constraint.
+        assert!(pack.matches_safe("redis-cli GET foo"));
+        assert!(pack.matches_safe("redis-cli -n 2 SCAN 0"));
+        assert!(pack.matches_safe("redis-cli INFO"));
+        assert!(pack.matches_safe("redis-cli KEYS '*'"));
+        assert!(pack.matches_safe("redis-cli DBSIZE"));
+        assert!(pack.matches_safe("redis-cli CONFIG GET maxmemory"));
+    }
+
+    #[test]
+    fn compound_command_safe_word_does_not_bypass_destructive() {
+        // These were the bypass cases: each compound command contains both a
+        // destructive redis keyword and a safe one. Previously the safe keyword
+        // would short-circuit the pack. Now the destructive pattern wins.
+        let pack = create_pack();
+        let m = pack
+            .check("redis-cli FLUSHALL && redis-cli GET foo")
+            .expect("FLUSHALL compound with GET must still block");
+        assert_eq!(m.name, Some("flushall"));
+
+        let m = pack
+            .check("redis-cli 'FLUSHDB; GET foo'")
+            .expect("FLUSHDB compound with GET must still block");
+        assert_eq!(m.name, Some("flushdb"));
+
+        let m = pack
+            .check("redis-cli CONFIG SET dir /tmp; redis-cli SCAN 0")
+            .expect("CONFIG SET dir compound with SCAN must still block");
+        assert_eq!(m.name, Some("config-dangerous"));
+
+        let m = pack
+            .check("redis-cli DEBUG SEGFAULT; redis-cli INFO")
+            .expect("DEBUG SEGFAULT compound with INFO must still block");
+        assert_eq!(m.name, Some("debug-crash"));
+    }
 }

@@ -139,7 +139,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // ec2 delete-* commands
         destructive_pattern!(
             "removes AWS resources",
-            r"aws\b.*?\bec2\s+delete-(?:snapshot|volume|vpc|subnet|security-group|key-pair|image)",
+            r"aws\b.*?\bec2\s+delete-",
             "aws ec2 delete-* permanently removes AWS resources.",
             High,
             "EC2 delete commands permanently remove resources:\n\n\
@@ -202,8 +202,8 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // rds delete-db-instance
         destructive_pattern!(
             "rds-delete",
-            r"aws\b.*?\brds\s+delete-db-(?:instance|cluster|snapshot|cluster-snapshot)",
-            "aws rds delete-db-instance/cluster permanently destroys the database.",
+            r"aws\b.*?\brds\s+delete-",
+            "aws rds delete-* permanently destroys the database resource (instance, cluster, snapshot, parameter group, subnet group, etc.).",
             Critical,
             "RDS delete commands permanently remove database resources:\n\n\
              - delete-db-instance: Destroys the database instance\n\
@@ -236,8 +236,8 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // lambda delete-function
         destructive_pattern!(
             "lambda-delete",
-            r"aws\b.*?\blambda\s+delete-function",
-            "aws lambda delete-function permanently removes the Lambda function.",
+            r"aws\b.*?\blambda\s+delete-",
+            "aws lambda delete-* permanently removes a Lambda resource (function, alias, layer version, event source mapping, etc.).",
             High,
             "delete-function removes a Lambda function completely:\n\n\
              - Function code is deleted\n\
@@ -252,7 +252,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // iam delete-user/role/policy
         destructive_pattern!(
             "iam-delete",
-            r"aws\b.*?\biam\s+delete-(?:user|role|policy|group)",
+            r"aws\b.*?\biam\s+delete-",
             "aws iam delete-* removes IAM resources. Verify dependencies first.",
             High,
             "IAM delete commands remove identity resources:\n\n\
@@ -658,6 +658,71 @@ mod tests {
     }
 
     #[test]
+    fn destructive_subcommand_coverage_gaps() {
+        // Pre-existing pattern-coverage gaps: the curated subcommand
+        // lists on ec2/iam/rds/lambda leave several destructive
+        // commands uncovered entirely. Any AWS `delete-*` subcommand
+        // removes something; narrow allowlists of specific subcommands
+        // miss the long tail.
+        let pack = create_pack();
+
+        // IAM delete-access-key: removes a user's API credentials.
+        assert_blocks(
+            &pack,
+            "aws iam delete-access-key --user-name admin --access-key-id AKIAX123",
+            "IAM",
+        );
+        // IAM delete-login-profile: removes a user's console access.
+        assert_blocks(
+            &pack,
+            "aws iam delete-login-profile --user-name admin",
+            "IAM",
+        );
+        // IAM delete-saml-provider: removes SSO federation.
+        assert_blocks(
+            &pack,
+            "aws iam delete-saml-provider --saml-provider-arn arn:aws:iam::111:saml-provider/corp",
+            "IAM",
+        );
+        // EC2 delete-nat-gateway: tears down NAT, takes out public egress.
+        assert_blocks(
+            &pack,
+            "aws ec2 delete-nat-gateway --nat-gateway-id nat-abc",
+            "AWS resources",
+        );
+        // EC2 delete-internet-gateway: takes out the VPC internet gateway.
+        assert_blocks(
+            &pack,
+            "aws ec2 delete-internet-gateway --internet-gateway-id igw-abc",
+            "AWS resources",
+        );
+        // EC2 delete-vpn-connection: takes out a VPN tunnel.
+        assert_blocks(
+            &pack,
+            "aws ec2 delete-vpn-connection --vpn-connection-id vpn-abc",
+            "AWS resources",
+        );
+        // RDS delete-db-parameter-group: removes tuning config.
+        assert_blocks(
+            &pack,
+            "aws rds delete-db-parameter-group --db-parameter-group-name prod-params",
+            "database",
+        );
+        // Lambda delete-alias: removes a named alias for a function.
+        assert_blocks(
+            &pack,
+            "aws lambda delete-alias --function-name my-fn --name PROD",
+            "Lambda",
+        );
+        // Lambda delete-layer-version: removes a shared dep layer.
+        assert_blocks(
+            &pack,
+            "aws lambda delete-layer-version --layer-name libs --version-number 5",
+            "Lambda",
+        );
+    }
+
+    #[test]
     fn existing_aws_patterns_also_match_with_global_flags() {
         // Class-bug sweep: the same `aws --profile / --region / --debug`
         // bypass that affected my new athena/glue patterns equally
@@ -699,7 +764,7 @@ mod tests {
         assert_blocks(
             &pack,
             "aws --profile prod lambda delete-function --function-name prod-fn",
-            "delete-function",
+            "Lambda",
         );
         // iam delete-*
         assert_blocks(

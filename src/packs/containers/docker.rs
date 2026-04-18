@@ -169,21 +169,21 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // docker ps/images/logs are safe (read-only)
-        safe_pattern!("docker-ps", r"docker\s+ps"),
-        safe_pattern!("docker-images", r"docker\s+images"),
-        safe_pattern!("docker-logs", r"docker\s+logs"),
+        safe_pattern!("docker-ps", r"docker\b.*?\s+ps\b"),
+        safe_pattern!("docker-images", r"docker\b.*?\s+images\b"),
+        safe_pattern!("docker-logs", r"docker\b.*?\s+logs\b"),
         // docker inspect is safe
-        safe_pattern!("docker-inspect", r"docker\s+inspect"),
+        safe_pattern!("docker-inspect", r"docker\b.*?\s+inspect\b"),
         // docker build is generally safe
-        safe_pattern!("docker-build", r"docker\s+build"),
+        safe_pattern!("docker-build", r"docker\b.*?\s+build\b"),
         // docker pull is safe
-        safe_pattern!("docker-pull", r"docker\s+pull"),
+        safe_pattern!("docker-pull", r"docker\b.*?\s+pull\b"),
         // docker run is allowed (creates, doesn't destroy)
-        safe_pattern!("docker-run", r"docker\s+run"),
+        safe_pattern!("docker-run", r"docker\b.*?\s+run\b"),
         // docker exec is generally safe
-        safe_pattern!("docker-exec", r"docker\s+exec"),
+        safe_pattern!("docker-exec", r"docker\b.*?\s+exec\b"),
         // docker stats is safe
-        safe_pattern!("docker-stats", r"docker\s+stats"),
+        safe_pattern!("docker-stats", r"docker\b.*?\s+stats\b"),
         // Dry-run flags
         safe_pattern!("docker-dry-run", r"docker\s+.*--dry-run"),
     ]

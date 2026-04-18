@@ -29,19 +29,19 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // podman ps/images/logs are safe (read-only)
-        safe_pattern!("podman-ps", r"podman\s+ps"),
-        safe_pattern!("podman-images", r"podman\s+images"),
-        safe_pattern!("podman-logs", r"podman\s+logs"),
+        safe_pattern!("podman-ps", r"podman\b.*?\s+ps\b"),
+        safe_pattern!("podman-images", r"podman\b.*?\s+images\b"),
+        safe_pattern!("podman-logs", r"podman\b.*?\s+logs\b"),
         // podman inspect is safe
-        safe_pattern!("podman-inspect", r"podman\s+inspect"),
+        safe_pattern!("podman-inspect", r"podman\b.*?\s+inspect\b"),
         // podman build is generally safe
-        safe_pattern!("podman-build", r"podman\s+build"),
+        safe_pattern!("podman-build", r"podman\b.*?\s+build\b"),
         // podman pull is safe
-        safe_pattern!("podman-pull", r"podman\s+pull"),
+        safe_pattern!("podman-pull", r"podman\b.*?\s+pull\b"),
         // podman run is allowed
-        safe_pattern!("podman-run", r"podman\s+run"),
+        safe_pattern!("podman-run", r"podman\b.*?\s+run\b"),
         // podman exec is generally safe
-        safe_pattern!("podman-exec", r"podman\s+exec"),
+        safe_pattern!("podman-exec", r"podman\b.*?\s+exec\b"),
     ]
 }
 
@@ -50,7 +50,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // system prune - removes all unused data
         destructive_pattern!(
             "system-prune",
-            r"podman\s+system\s+prune",
+            r"podman\b.*?\bsystem\s+prune",
             "podman system prune removes ALL unused containers, pods, images. Use 'podman system df' to preview.",
             High,
             "podman system prune is an aggressive cleanup command that removes:\n\n\
@@ -67,7 +67,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // volume prune - removes all unused volumes
         destructive_pattern!(
             "volume-prune",
-            r"podman\s+volume\s+prune",
+            r"podman\b.*?\bvolume\s+prune",
             "podman volume prune removes ALL unused volumes and their data permanently.",
             Critical,
             "podman volume prune permanently deletes ALL volumes not currently in use by \
@@ -84,7 +84,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // pod prune - removes stopped pods
         destructive_pattern!(
             "pod-prune",
-            r"podman\s+pod\s+prune",
+            r"podman\b.*?\bpod\s+prune",
             "podman pod prune removes ALL stopped pods.",
             Medium,
             "podman pod prune removes all pods that are not currently running. Pods group \
@@ -100,7 +100,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // image prune - removes unused images (Medium: only affects unused images)
         destructive_pattern!(
             "image-prune",
-            r"podman\s+image\s+prune",
+            r"podman\b.*?\bimage\s+prune",
             "podman image prune removes unused images. Use 'podman images' to review first.",
             Medium,
             "podman image prune removes dangling images (untagged layers). With -a flag, \
@@ -116,7 +116,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // container prune - removes stopped containers (Medium: only affects stopped)
         destructive_pattern!(
             "container-prune",
-            r"podman\s+container\s+prune",
+            r"podman\b.*?\bcontainer\s+prune",
             "podman container prune removes ALL stopped containers.",
             Medium,
             "podman container prune removes all stopped containers. Relatively safe but:\n\n\
@@ -131,7 +131,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // rm -f (force remove containers)
         destructive_pattern!(
             "rm-force",
-            r"podman\s+rm\s+.*(?:-[a-zA-Z0-9]*f|--force)",
+            r"podman\b.*?\brm\s+.*(?:-[a-zA-Z0-9]*f|--force)",
             "podman rm -f forcibly removes containers, potentially losing data.",
             High,
             "podman rm -f forcibly stops and removes containers. This is dangerous because:\n\n\
@@ -147,7 +147,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // rmi -f (force remove images)
         destructive_pattern!(
             "rmi-force",
-            r"podman\s+rmi\s+.*(?:-[a-zA-Z0-9]*f|--force)",
+            r"podman\b.*?\brmi\s+.*(?:-[a-zA-Z0-9]*f|--force)",
             "podman rmi -f forcibly removes images even if in use.",
             High,
             "podman rmi -f forcibly removes images, even if containers reference them. \
@@ -163,7 +163,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // volume rm
         destructive_pattern!(
             "volume-rm",
-            r"podman\s+volume\s+rm",
+            r"podman\b.*?\bvolume\s+rm",
             "podman volume rm permanently deletes volumes and their data.",
             High,
             "podman volume rm permanently deletes named volumes and all data stored in them. \
@@ -184,6 +184,30 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
 mod tests {
     use super::*;
     use crate::packs::test_helpers::*;
+
+    #[test]
+    fn podman_patterns_match_with_global_flags() {
+        // Same class bug as cloud packs and docker: Podman global flags
+        // (`--remote`, `--url`, `--connection`, `--log-level`, `--storage-opt`)
+        // break every `podman\s+<sub>` pattern when placed before the
+        // subcommand.
+        let pack = create_pack();
+        assert_blocks(
+            &pack,
+            "podman --remote --connection prod volume rm critical-vol",
+            "volumes",
+        );
+        assert_blocks(
+            &pack,
+            "podman --url tcp://prod:8080 system prune --all",
+            "prune",
+        );
+        assert_blocks(
+            &pack,
+            "podman --log-level debug --connection prod rm -f prod-db",
+            "forcibly removes",
+        );
+    }
 
     #[test]
     fn test_rm_force() {

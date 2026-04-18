@@ -606,9 +606,11 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
 
     vec![
         // rm -rf on root or home paths (CRITICAL - catastrophic, never allow)
+        // `['"]?` before `[/~]` so `rm -rf "/"` and `rm -rf '/'` are caught
+        // too — shell unquotes those to `/` before rm sees them.
         destructive_pattern!(
             "rm-rf-root-home",
-            r"rm\s+-[a-zA-Z]*[rR][a-zA-Z]*f[a-zA-Z]*\s+[/~]|rm\s+-[a-zA-Z]*f[a-zA-Z]*[rR][a-zA-Z]*\s+[/~]",
+            r#"rm\s+-[a-zA-Z]*[rR][a-zA-Z]*f[a-zA-Z]*\s+['"]?[/~]|rm\s+-[a-zA-Z]*f[a-zA-Z]*[rR][a-zA-Z]*\s+['"]?[/~]"#,
             "rm -rf on root or home paths is EXTREMELY DANGEROUS. This command will NOT be executed. Ask the user to run it manually if truly needed.",
             Critical,
             "This command would recursively delete files starting from the root filesystem (/) \
@@ -713,6 +715,11 @@ mod tests {
         assert_blocks_with_severity(&pack, "rm -rf /home", Severity::Critical);
         assert_blocks_with_severity(&pack, "rm -rf ~/", Severity::Critical);
         assert_blocks_with_pattern(&pack, "rm -rf /", "rm-rf-root-home");
+        // Quoted / or ~ — shell evaluates to / or ~; must still block.
+        assert_blocks_with_severity(&pack, "rm -rf \"/\"", Severity::Critical);
+        assert_blocks_with_severity(&pack, "rm -rf '/'", Severity::Critical);
+        assert_blocks_with_severity(&pack, "rm -rf \"~/\"", Severity::Critical);
+        assert_blocks_with_severity(&pack, "rm -rf '/etc'", Severity::Critical);
     }
 
     #[test]

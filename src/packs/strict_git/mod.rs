@@ -102,10 +102,13 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         // Block git add . (stages everything, may include secrets, .env, build artifacts)
         // Use (?:\s|$) instead of \s*$ so we also catch compound commands like
-        // "git add . && echo done" (bypass via shell chaining).
+        // "git add . && echo done" (bypass via shell chaining). Also accept an
+        // optional quote pair around `.` so `git add '.'` / `git add "."` are
+        // caught — shell-quoted `.` evaluates to `.` in the exec and stages
+        // everything identically.
         destructive_pattern!(
             "add-all-dot",
-            r"git\b.*?\badd\s+\.(?:\s|$)",
+            r#"git\b.*?\badd\s+['"]?\.['"]?(?:\s|$)"#,
             "git add . stages everything including secrets, .env files, and build artifacts. Use 'git add <specific-files>' instead."
         ),
         // Block git add -A / git add --all (same concern as git add .)
@@ -191,6 +194,10 @@ mod tests {
         assert_blocks(&pack, "git add . | cat", "stages everything");
         // Trailing whitespace
         assert_blocks(&pack, "git add . ", "stages everything");
+        // Quoted `.` — shell unquotes to `.`, same stage-everything effect.
+        assert_blocks(&pack, "git add '.'", "stages everything");
+        assert_blocks(&pack, "git add \".\"", "stages everything");
+        assert_blocks(&pack, "git add '.' && echo done", "stages everything");
         // Should not match when adding specific dotfiles or paths starting with .
         assert_allows(&pack, "git add .gitignore");
         assert_allows(&pack, "git add ./src/main.rs");

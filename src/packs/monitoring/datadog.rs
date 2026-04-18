@@ -28,11 +28,11 @@ fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         safe_pattern!(
             "datadog-ci-monitors-list",
-            r"datadog-ci\s+monitors\s+(?:get|list)\b"
+            r"datadog-ci\b.*?\bmonitors\s+(?:get|list)\b"
         ),
         safe_pattern!(
             "datadog-ci-dashboards-list",
-            r"datadog-ci\s+dashboards\s+(?:get|list)\b"
+            r"datadog-ci\b.*?\bdashboards\s+(?:get|list)\b"
         ),
         safe_pattern!(
             "datadog-api-get",
@@ -45,7 +45,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
     vec![
         destructive_pattern!(
             "datadog-ci-monitors-delete",
-            r"datadog-ci\s+monitors\s+delete\b",
+            r"datadog-ci\b.*?\bmonitors\s+delete\b",
             "datadog-ci monitors delete removes a Datadog monitor.",
             High,
             "Deleting a Datadog monitor stops all alerting for that check. You will no \
@@ -58,7 +58,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "datadog-ci-dashboards-delete",
-            r"datadog-ci\s+dashboards\s+delete\b",
+            r"datadog-ci\b.*?\bdashboards\s+delete\b",
             "datadog-ci dashboards delete removes a Datadog dashboard.",
             High,
             "Deleting a dashboard removes all widgets, queries, and layout configuration. \
@@ -84,7 +84,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "terraform-datadog-destroy",
-            r"terraform\s+destroy\b.*\bdatadog_[a-zA-Z0-9_]+\b",
+            r"terraform\b.*?\bdestroy\b.*\bdatadog_[a-zA-Z0-9_]+\b",
             "terraform destroy targeting Datadog resources removes monitoring infrastructure.",
             High,
             "Terraform destroy removes Datadog monitors, dashboards, and other resources \

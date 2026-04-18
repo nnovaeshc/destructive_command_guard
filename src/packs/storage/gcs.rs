@@ -40,23 +40,23 @@ fn create_safe_patterns() -> Vec<SafePattern> {
         // gcloud storage read operations
         safe_pattern!(
             "gcloud-storage-buckets-list",
-            r"gcloud\s+storage\s+buckets\s+list\b"
+            r"gcloud\b.*?\bstorage\s+buckets\s+list\b"
         ),
         safe_pattern!(
             "gcloud-storage-buckets-describe",
-            r"gcloud\s+storage\s+buckets\s+describe\b"
+            r"gcloud\b.*?\bstorage\s+buckets\s+describe\b"
         ),
         safe_pattern!(
             "gcloud-storage-objects-list",
-            r"gcloud\s+storage\s+objects\s+list\b"
+            r"gcloud\b.*?\bstorage\s+objects\s+list\b"
         ),
         safe_pattern!(
             "gcloud-storage-objects-describe",
-            r"gcloud\s+storage\s+objects\s+describe\b"
+            r"gcloud\b.*?\bstorage\s+objects\s+describe\b"
         ),
-        safe_pattern!("gcloud-storage-ls", r"gcloud\s+storage\s+ls\b"),
-        safe_pattern!("gcloud-storage-cat", r"gcloud\s+storage\s+cat\b"),
-        safe_pattern!("gcloud-storage-cp", r"gcloud\s+storage\s+cp\b"),
+        safe_pattern!("gcloud-storage-ls", r"gcloud\b.*?\bstorage\s+ls\b"),
+        safe_pattern!("gcloud-storage-cat", r"gcloud\b.*?\bstorage\s+cat\b"),
+        safe_pattern!("gcloud-storage-cp", r"gcloud\b.*?\bstorage\s+cp\b"),
     ]
 }
 
@@ -65,7 +65,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // gsutil bucket removal
         destructive_pattern!(
             "gsutil-rb",
-            r"gsutil\s+(?:-[a-zA-Z]+\s+)*rb\b",
+            r"gsutil\b.*?\brb\b",
             "gsutil rb removes a GCS bucket.",
             Critical,
             "Removing a GCS bucket deletes the bucket and potentially all objects within it. \
@@ -79,7 +79,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // gsutil object removal
         destructive_pattern!(
             "gsutil-rm",
-            r"gsutil\s+(?:-[a-zA-Z]+\s+)*rm\b",
+            r"gsutil\b.*?\brm\b",
             "gsutil rm deletes objects from GCS.",
             High,
             "Deleting GCS objects permanently removes data unless versioning is enabled. \
@@ -93,7 +93,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // gsutil rsync with delete
         destructive_pattern!(
             "gsutil-rsync-delete",
-            r"gsutil\s+(?:-[a-zA-Z]+\s+)*rsync\b.*\s+-d\b",
+            r"gsutil\b.*?\brsync\b.*\s+-d\b",
             "gsutil rsync -d deletes destination objects not in source.",
             High,
             "The -d flag with gsutil rsync deletes destination objects that don't exist \
@@ -107,7 +107,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // gcloud storage bucket deletion
         destructive_pattern!(
             "gcloud-storage-buckets-delete",
-            r"gcloud\s+storage\s+buckets\s+delete\b",
+            r"gcloud\b.*?\bstorage\s+buckets\s+delete\b",
             "gcloud storage buckets delete removes a GCS bucket.",
             Critical,
             "Deleting a GCS bucket removes the bucket configuration and all objects within it \
@@ -121,7 +121,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // gcloud storage object deletion
         destructive_pattern!(
             "gcloud-storage-objects-delete",
-            r"gcloud\s+storage\s+objects\s+delete\b",
+            r"gcloud\b.*?\bstorage\s+objects\s+delete\b",
             "gcloud storage objects delete removes objects from GCS.",
             High,
             "Deleting GCS objects permanently removes data. Without object versioning, \
@@ -135,7 +135,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // gcloud storage rm
         destructive_pattern!(
             "gcloud-storage-rm",
-            r"gcloud\s+storage\s+rm\b",
+            r"gcloud\b.*?\bstorage\s+rm\b",
             "gcloud storage rm removes objects from GCS.",
             High,
             "The rm command deletes objects and can recursively remove entire bucket \

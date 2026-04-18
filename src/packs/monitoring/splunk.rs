@@ -27,9 +27,9 @@ pub fn create_pack() -> Pack {
 
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
-        safe_pattern!("splunk-list", r"splunk\s+list\b"),
-        safe_pattern!("splunk-show", r"splunk\s+show\b"),
-        safe_pattern!("splunk-search", r"splunk\s+search\b"),
+        safe_pattern!("splunk-list", r"splunk\b.*?\s+list\b"),
+        safe_pattern!("splunk-show", r"splunk\b.*?\s+show\b"),
+        safe_pattern!("splunk-search", r"splunk\b.*?\s+search\b"),
     ]
 }
 
@@ -37,7 +37,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
     vec![
         destructive_pattern!(
             "splunk-remove-index",
-            r"splunk\s+remove\s+index\b",
+            r"splunk\b.*?\bremove\s+index\b",
             "splunk remove index deletes an index and its data permanently.",
             Critical,
             "Removing a Splunk index permanently deletes all indexed data within it. \
@@ -50,7 +50,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "splunk-clean-eventdata",
-            r"splunk\s+clean\s+eventdata\b",
+            r"splunk\b.*?\bclean\s+eventdata\b",
             "splunk clean eventdata permanently deletes indexed data.",
             Critical,
             "Clean eventdata permanently removes all events from the specified index. \
@@ -63,7 +63,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "splunk-delete-user-role",
-            r"splunk\s+delete\s+(?:user|role)\b",
+            r"splunk\b.*?\bdelete\s+(?:user|role)\b",
             "splunk delete user/role removes access configurations. Verify before deleting.",
             High,
             "Deleting a user removes their access and any saved searches or dashboards \

@@ -32,19 +32,19 @@ fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         safe_pattern!(
             "route53-list-hosted-zones",
-            r"aws\s+route53\s+list-hosted-zones\b"
+            r"\baws\b.*?\broute53\s+list-hosted-zones\b"
         ),
         safe_pattern!(
             "route53-list-resource-record-sets",
-            r"aws\s+route53\s+list-resource-record-sets\b"
+            r"\baws\b.*?\broute53\s+list-resource-record-sets\b"
         ),
         safe_pattern!(
             "route53-get-hosted-zone",
-            r"aws\s+route53\s+get-hosted-zone\b"
+            r"\baws\b.*?\broute53\s+get-hosted-zone\b"
         ),
         safe_pattern!(
             "route53-test-dns-answer",
-            r"aws\s+route53\s+test-dns-answer\b"
+            r"\baws\b.*?\broute53\s+test-dns-answer\b"
         ),
     ]
 }
@@ -53,7 +53,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
     vec![
         destructive_pattern!(
             "route53-delete-hosted-zone",
-            r"aws\s+route53\s+delete-hosted-zone\b",
+            r"\baws\b.*?\broute53\s+delete-hosted-zone\b",
             "aws route53 delete-hosted-zone permanently deletes a Route53 hosted zone.",
             Critical,
             "Deleting a hosted zone removes ALL DNS records for that domain. Services, \
@@ -66,7 +66,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "route53-change-resource-record-sets-delete",
-            r"aws\s+route53\s+change-resource-record-sets\b.*\bDELETE\b",
+            r"\baws\b.*?\broute53\s+change-resource-record-sets\b.*\bDELETE\b",
             "aws route53 change-resource-record-sets with DELETE removes DNS records.",
             High,
             "DELETE actions in change-resource-record-sets immediately remove DNS records. \
@@ -79,7 +79,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "route53-delete-health-check",
-            r"aws\s+route53\s+delete-health-check\b",
+            r"\baws\b.*?\broute53\s+delete-health-check\b",
             "aws route53 delete-health-check permanently deletes a Route53 health check.",
             High,
             "Deleting a health check can disrupt DNS failover. If records reference this \
@@ -92,7 +92,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "route53-delete-query-logging-config",
-            r"aws\s+route53\s+delete-query-logging-config\b",
+            r"\baws\b.*?\broute53\s+delete-query-logging-config\b",
             "aws route53 delete-query-logging-config removes a Route53 query logging configuration.",
             Medium,
             "Deleting query logging stops DNS query visibility for that hosted zone. This \
@@ -105,7 +105,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "route53-delete-traffic-policy",
-            r"aws\s+route53\s+delete-traffic-policy\b",
+            r"\baws\b.*?\broute53\s+delete-traffic-policy\b",
             "aws route53 delete-traffic-policy permanently deletes a Route53 traffic policy.",
             High,
             "Deleting a traffic policy removes the routing logic. Policy instances \
@@ -118,7 +118,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "route53-delete-reusable-delegation-set",
-            r"aws\s+route53\s+delete-reusable-delegation-set\b",
+            r"\baws\b.*?\broute53\s+delete-reusable-delegation-set\b",
             "aws route53 delete-reusable-delegation-set permanently deletes a reusable delegation set.",
             High,
             "Deleting a reusable delegation set affects all hosted zones using it. If \
@@ -198,6 +198,26 @@ mod tests {
             &pack,
             "aws route53 delete-reusable-delegation-set --id N123",
             "route53-delete-reusable-delegation-set",
+        );
+    }
+
+    #[test]
+    fn aws_global_flags_do_not_bypass() {
+        let pack = create_pack();
+        assert_blocks_with_pattern(
+            &pack,
+            "aws --profile prod route53 delete-hosted-zone --id Z123",
+            "route53-delete-hosted-zone",
+        );
+        assert_blocks_with_pattern(
+            &pack,
+            "aws --region us-east-1 --profile prod route53 delete-health-check --health-check-id h",
+            "route53-delete-health-check",
+        );
+        assert!(
+            pack.check("aws --profile prod route53 list-hosted-zones")
+                .is_none(),
+            "safe read with global flag should remain safe"
         );
     }
 }

@@ -34,7 +34,7 @@ fn create_safe_patterns() -> Vec<SafePattern> {
         // Status check via systemctl/service
         safe_pattern!(
             "systemctl-status-haproxy",
-            r"systemctl\s+status\s+haproxy(?:\.service)?\b"
+            r"systemctl\b.*?\s+status\s+haproxy(?:\.service)?\b"
         ),
         safe_pattern!("service-status-haproxy", r"service\s+haproxy\s+status\b"),
         // Runtime API read-only queries via socat
@@ -61,7 +61,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // Systemctl/service stop
         destructive_pattern!(
             "haproxy-systemctl-stop",
-            r"systemctl\s+stop\s+haproxy(?:\.service)?\b",
+            r"systemctl\b.*?\s+stop\s+haproxy(?:\.service)?\b",
             "systemctl stop haproxy stops the HAProxy service."
         ),
         destructive_pattern!(

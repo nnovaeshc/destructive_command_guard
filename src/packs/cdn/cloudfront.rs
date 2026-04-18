@@ -32,53 +32,53 @@ fn create_safe_patterns() -> Vec<SafePattern> {
         // List operations
         safe_pattern!(
             "cloudfront-list-distributions",
-            r"aws\s+cloudfront\s+list-distributions\b"
+            r"\baws\b.*?\bcloudfront\s+list-distributions\b"
         ),
         safe_pattern!(
             "cloudfront-list-cache-policies",
-            r"aws\s+cloudfront\s+list-cache-policies\b"
+            r"\baws\b.*?\bcloudfront\s+list-cache-policies\b"
         ),
         safe_pattern!(
             "cloudfront-list-origin-request-policies",
-            r"aws\s+cloudfront\s+list-origin-request-policies\b"
+            r"\baws\b.*?\bcloudfront\s+list-origin-request-policies\b"
         ),
         safe_pattern!(
             "cloudfront-list-functions",
-            r"aws\s+cloudfront\s+list-functions\b"
+            r"\baws\b.*?\bcloudfront\s+list-functions\b"
         ),
         safe_pattern!(
             "cloudfront-list-invalidations",
-            r"aws\s+cloudfront\s+list-invalidations\b"
+            r"\baws\b.*?\bcloudfront\s+list-invalidations\b"
         ),
         // Get operations
         safe_pattern!(
             "cloudfront-get-distribution",
-            r"aws\s+cloudfront\s+get-distribution\b"
+            r"\baws\b.*?\bcloudfront\s+get-distribution\b"
         ),
         safe_pattern!(
             "cloudfront-get-distribution-config",
-            r"aws\s+cloudfront\s+get-distribution-config\b"
+            r"\baws\b.*?\bcloudfront\s+get-distribution-config\b"
         ),
         safe_pattern!(
             "cloudfront-get-cache-policy",
-            r"aws\s+cloudfront\s+get-cache-policy\b"
+            r"\baws\b.*?\bcloudfront\s+get-cache-policy\b"
         ),
         safe_pattern!(
             "cloudfront-get-origin-request-policy",
-            r"aws\s+cloudfront\s+get-origin-request-policy\b"
+            r"\baws\b.*?\bcloudfront\s+get-origin-request-policy\b"
         ),
         safe_pattern!(
             "cloudfront-get-function",
-            r"aws\s+cloudfront\s+get-function\b"
+            r"\baws\b.*?\bcloudfront\s+get-function\b"
         ),
         safe_pattern!(
             "cloudfront-get-invalidation",
-            r"aws\s+cloudfront\s+get-invalidation\b"
+            r"\baws\b.*?\bcloudfront\s+get-invalidation\b"
         ),
         // Describe operations
         safe_pattern!(
             "cloudfront-describe-function",
-            r"aws\s+cloudfront\s+describe-function\b"
+            r"\baws\b.*?\bcloudfront\s+describe-function\b"
         ),
     ]
 }
@@ -88,7 +88,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // Distribution deletion
         destructive_pattern!(
             "cloudfront-delete-distribution",
-            r"aws\s+cloudfront\s+delete-distribution\b",
+            r"\baws\b.*?\bcloudfront\s+delete-distribution\b",
             "aws cloudfront delete-distribution removes a CloudFront distribution.",
             Critical,
             "Deleting a CloudFront distribution removes your CDN endpoint. All traffic \
@@ -103,7 +103,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // Cache policy deletion
         destructive_pattern!(
             "cloudfront-delete-cache-policy",
-            r"aws\s+cloudfront\s+delete-cache-policy\b",
+            r"\baws\b.*?\bcloudfront\s+delete-cache-policy\b",
             "aws cloudfront delete-cache-policy removes a cache policy.",
             High,
             "Deleting a cache policy fails if any distribution behaviors reference it. \
@@ -117,7 +117,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // Origin request policy deletion
         destructive_pattern!(
             "cloudfront-delete-origin-request-policy",
-            r"aws\s+cloudfront\s+delete-origin-request-policy\b",
+            r"\baws\b.*?\bcloudfront\s+delete-origin-request-policy\b",
             "aws cloudfront delete-origin-request-policy removes an origin request policy.",
             High,
             "Deleting an origin request policy removes header, query string, and cookie \
@@ -131,7 +131,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // Function deletion
         destructive_pattern!(
             "cloudfront-delete-function",
-            r"aws\s+cloudfront\s+delete-function\b",
+            r"\baws\b.*?\bcloudfront\s+delete-function\b",
             "aws cloudfront delete-function removes a CloudFront function.",
             High,
             "Deleting a CloudFront Function removes edge compute logic. Any distributions \
@@ -145,7 +145,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // Response headers policy deletion
         destructive_pattern!(
             "cloudfront-delete-response-headers-policy",
-            r"aws\s+cloudfront\s+delete-response-headers-policy\b",
+            r"\baws\b.*?\bcloudfront\s+delete-response-headers-policy\b",
             "aws cloudfront delete-response-headers-policy removes a response headers policy.",
             High,
             "Deleting a response headers policy removes security headers like CORS, \
@@ -159,7 +159,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // Key group deletion
         destructive_pattern!(
             "cloudfront-delete-key-group",
-            r"aws\s+cloudfront\s+delete-key-group\b",
+            r"\baws\b.*?\bcloudfront\s+delete-key-group\b",
             "aws cloudfront delete-key-group removes a key group used for signed URLs.",
             Critical,
             "Deleting a key group breaks signed URL and signed cookie validation. \
@@ -174,7 +174,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // Invalidation (has cost implications)
         destructive_pattern!(
             "cloudfront-create-invalidation",
-            r"aws\s+cloudfront\s+create-invalidation\b",
+            r"\baws\b.*?\bcloudfront\s+create-invalidation\b",
             "aws cloudfront create-invalidation creates a cache invalidation (has cost implications).",
             Medium,
             "Cache invalidations have cost implications after the first 1,000 paths per \
@@ -229,6 +229,28 @@ mod tests {
             "aws cloudfront get-invalidation --distribution-id ABC --id INV",
         );
         assert_safe_pattern_matches(&pack, "aws cloudfront describe-function --name myfunc");
+    }
+
+    #[test]
+    fn aws_global_flags_do_not_bypass() {
+        // `aws --profile X --region Y cloudfront delete-distribution` is the
+        // canonical class bug: global flags on `aws` before the service name.
+        let pack = create_pack();
+        let matched = pack
+            .check("aws --profile prod cloudfront delete-distribution --id ABC --if-match E")
+            .expect("global flag before service should still be blocked");
+        assert_eq!(matched.name, Some("cloudfront-delete-distribution"));
+
+        let matched = pack
+            .check("aws --region us-west-2 --profile prod cloudfront delete-function --name x")
+            .expect("multiple global flags should still be blocked");
+        assert_eq!(matched.name, Some("cloudfront-delete-function"));
+
+        assert!(
+            pack.check("aws --profile prod cloudfront list-distributions")
+                .is_none(),
+            "safe list command with global flag should still be allowed"
+        );
     }
 
     #[test]

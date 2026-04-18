@@ -26,31 +26,31 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // unleash CLI - list/get operations
-        safe_pattern!("unleash-features-list", r"unleash\s+features?\s+list\b"),
-        safe_pattern!("unleash-features-get", r"unleash\s+features?\s+get\b"),
-        safe_pattern!("unleash-features-create", r"unleash\s+features?\s+create\b"),
-        safe_pattern!("unleash-features-update", r"unleash\s+features?\s+update\b"),
-        safe_pattern!("unleash-features-enable", r"unleash\s+features?\s+enable\b"),
+        safe_pattern!("unleash-features-list", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+features?\s+list\b"),
+        safe_pattern!("unleash-features-get", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+features?\s+get\b"),
+        safe_pattern!("unleash-features-create", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+features?\s+create\b"),
+        safe_pattern!("unleash-features-update", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+features?\s+update\b"),
+        safe_pattern!("unleash-features-enable", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+features?\s+enable\b"),
         safe_pattern!(
             "unleash-features-disable",
-            r"unleash\s+features?\s+disable\b"
+            r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+features?\s+disable\b"
         ),
-        safe_pattern!("unleash-projects-list", r"unleash\s+projects?\s+list\b"),
-        safe_pattern!("unleash-projects-get", r"unleash\s+projects?\s+get\b"),
-        safe_pattern!("unleash-projects-create", r"unleash\s+projects?\s+create\b"),
+        safe_pattern!("unleash-projects-list", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+projects?\s+list\b"),
+        safe_pattern!("unleash-projects-get", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+projects?\s+get\b"),
+        safe_pattern!("unleash-projects-create", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+projects?\s+create\b"),
         safe_pattern!(
             "unleash-environments-list",
-            r"unleash\s+environments?\s+list\b"
+            r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+environments?\s+list\b"
         ),
         safe_pattern!(
             "unleash-environments-get",
-            r"unleash\s+environments?\s+get\b"
+            r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+environments?\s+get\b"
         ),
-        safe_pattern!("unleash-strategies-list", r"unleash\s+strategies?\s+list\b"),
-        safe_pattern!("unleash-strategies-get", r"unleash\s+strategies?\s+get\b"),
+        safe_pattern!("unleash-strategies-list", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+strategies?\s+list\b"),
+        safe_pattern!("unleash-strategies-get", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+strategies?\s+get\b"),
         // Help and version commands
-        safe_pattern!("unleash-help", r"unleash\s+(?:--help|-h|help)\b"),
-        safe_pattern!("unleash-version", r"unleash\s+(?:--version|version)\b"),
+        safe_pattern!("unleash-help", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--help|-h|help)\b"),
+        safe_pattern!("unleash-version", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--version|version)\b"),
         // API - GET requests
         safe_pattern!(
             "unleash-api-get",
@@ -64,7 +64,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // unleash CLI - delete/archive operations
         destructive_pattern!(
             "unleash-features-delete",
-            r"unleash\s+features?\s+delete\b",
+            r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+features?\s+delete\b",
             "unleash features delete permanently removes a feature toggle. This cannot be undone.",
             Critical,
             "Deleting an Unleash feature toggle permanently removes it and all its \
@@ -77,7 +77,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "unleash-features-archive",
-            r"unleash\s+features?\s+archive\b",
+            r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+features?\s+archive\b",
             "unleash features archive soft-deletes a feature toggle.",
             High,
             "Archiving a toggle removes it from evaluation but allows recovery. SDKs \
@@ -90,7 +90,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "unleash-projects-delete",
-            r"unleash\s+projects?\s+delete\b",
+            r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+projects?\s+delete\b",
             "unleash projects delete removes a project and all its feature toggles.",
             Critical,
             "Deleting a project removes ALL feature toggles, strategies, and environments \
@@ -103,7 +103,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "unleash-environments-delete",
-            r"unleash\s+environments?\s+delete\b",
+            r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+environments?\s+delete\b",
             "unleash environments delete removes an environment.",
             Critical,
             "Deleting an environment removes all toggle configurations for that \
@@ -116,7 +116,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "unleash-strategies-delete",
-            r"unleash\s+strategies?\s+delete\b",
+            r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+strategies?\s+delete\b",
             "unleash strategies delete removes a custom strategy.",
             High,
             "Deleting a custom strategy breaks all toggles using it. Those toggles \
@@ -129,7 +129,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "unleash-api-keys-delete",
-            r"unleash\s+api-keys?\s+delete\b",
+            r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+api-keys?\s+delete\b",
             "unleash api-keys delete removes an API key.",
             High,
             "Deleting an API key immediately revokes access for all SDKs using that \
@@ -306,5 +306,26 @@ mod tests {
         let pack = create_pack();
         assert_allows(&pack, "echo unleash");
         assert_allows(&pack, "cat unleash.yaml");
+    }
+
+    #[test]
+    fn global_flags_do_not_bypass() {
+        let pack = create_pack();
+        // unleash CLI accepts --api-url, --api-token, --project, --environment flags.
+        assert_blocks_with_pattern(
+            &pack,
+            "unleash --api-url https://unleash.example.com --project default features delete my-toggle",
+            "unleash-features-delete",
+        );
+        assert_blocks_with_pattern(
+            &pack,
+            "unleash --api-token abc123 projects delete my-project",
+            "unleash-projects-delete",
+        );
+        assert!(
+            pack.check("unleash --api-url https://u.example.com features list")
+                .is_none(),
+            "safe list with global flag should remain safe"
+        );
     }
 }

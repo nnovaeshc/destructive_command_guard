@@ -33,23 +33,31 @@ pub fn create_pack() -> Pack {
 }
 
 fn create_safe_patterns() -> Vec<SafePattern> {
+    // systemctl supports global flags before the verb:
+    //   systemctl -H remote-host status sshd
+    //   systemctl --user status my-service
+    //   systemctl -M machine list-units
+    // Use `systemctl\b.*?\s+<verb>\b` so those flag-positions don't bypass.
     vec![
         // status commands are safe
-        safe_pattern!("systemctl-status", r"systemctl\s+status"),
-        safe_pattern!("service-status", r"service\s+\S+\s+status"),
+        safe_pattern!("systemctl-status", r"systemctl\b.*?\s+status\b"),
+        safe_pattern!("service-status", r"service\s+\S+\s+status\b"),
         // list commands are safe
         safe_pattern!(
             "systemctl-list",
-            r"systemctl\s+list-(?:units|unit-files|sockets|timers)"
+            r"systemctl\b.*?\s+list-(?:units|unit-files|sockets|timers)\b"
         ),
         // show is safe
-        safe_pattern!("systemctl-show", r"systemctl\s+show"),
+        safe_pattern!("systemctl-show", r"systemctl\b.*?\s+show\b"),
         // is-active/is-enabled are safe
-        safe_pattern!("systemctl-is", r"systemctl\s+is-(?:active|enabled|failed)"),
+        safe_pattern!(
+            "systemctl-is",
+            r"systemctl\b.*?\s+is-(?:active|enabled|failed)\b"
+        ),
         // daemon-reload is generally safe
-        safe_pattern!("systemctl-reload", r"systemctl\s+daemon-reload"),
+        safe_pattern!("systemctl-reload", r"systemctl\b.*?\s+daemon-reload\b"),
         // cat is safe (view unit file)
-        safe_pattern!("systemctl-cat", r"systemctl\s+cat"),
+        safe_pattern!("systemctl-cat", r"systemctl\b.*?\s+cat\b"),
         // journalctl is safe (logs)
         safe_pattern!("journalctl", r"\bjournalctl\b"),
     ]
@@ -60,7 +68,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // systemctl stop/disable critical services
         destructive_pattern!(
             "systemctl-stop-critical",
-            r"systemctl\s+(?:stop|disable|mask)\s+(?:ssh|sshd|network|networking|firewalld|ufw|docker|containerd)",
+            r"systemctl\b.*?\s+(?:stop|disable|mask)\s+(?:ssh|sshd|network|networking|firewalld|ufw|docker|containerd)\b",
             "Stopping/disabling critical services can cause system access loss or outage.",
             High,
             "Stopping, disabling, or masking a critical system service can lock you out \
@@ -75,7 +83,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // systemctl stop/disable any service
         destructive_pattern!(
             "systemctl-stop",
-            r"systemctl\s+(?:stop|disable|mask)\b",
+            r"systemctl\b.*?\s+(?:stop|disable|mask)\b",
             "systemctl stop/disable/mask affects service availability. Verify service name.",
             High,
             "Stopping a service immediately terminates it; disabling prevents it from \
@@ -103,7 +111,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // systemctl isolate (changes runlevel)
         destructive_pattern!(
             "systemctl-isolate",
-            r"systemctl\s+isolate",
+            r"systemctl\b.*?\s+isolate\b",
             "systemctl isolate changes the system state significantly.",
             High,
             "Isolating a target stops all services not required by that target. For \
@@ -118,7 +126,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // systemctl poweroff/reboot/halt
         destructive_pattern!(
             "systemctl-power",
-            r"systemctl\s+(?:poweroff|reboot|halt|suspend|hibernate)",
+            r"systemctl\b.*?\s+(?:poweroff|reboot|halt|suspend|hibernate)\b",
             "systemctl poweroff/reboot/halt will shut down or restart the system.",
             Critical,
             "This immediately initiates a system power state change. Poweroff and halt \
@@ -211,5 +219,47 @@ mod tests {
         let pack = create_pack();
         assert!(!pack.might_match("echo hello"));
         assert!(pack.check("echo hello").is_none());
+    }
+
+    #[test]
+    fn systemctl_global_flags_do_not_bypass() {
+        // systemctl supports -H <host>, -M <machine>, --user, --system
+        // before the verb. Old `systemctl\s+<verb>` patterns failed when
+        // those flags were present, silently bypassing the guard.
+        let pack = create_pack();
+        let matched = pack
+            .check("systemctl -H remote-host stop sshd")
+            .expect("remote host + stop critical should be blocked");
+        assert_eq!(matched.name, Some("systemctl-stop-critical"));
+
+        let matched = pack
+            .check("systemctl --user disable my-unit")
+            .expect("--user + disable should be blocked");
+        assert_eq!(matched.name, Some("systemctl-stop"));
+
+        let matched = pack
+            .check("systemctl -M machine mask containerd")
+            .expect("machine + mask critical should be blocked");
+        assert_eq!(matched.name, Some("systemctl-stop-critical"));
+
+        let matched = pack
+            .check("systemctl --system poweroff")
+            .expect("--system + poweroff should be blocked");
+        assert_eq!(matched.name, Some("systemctl-power"));
+
+        let matched = pack
+            .check("systemctl -H host isolate rescue.target")
+            .expect("host + isolate should be blocked");
+        assert_eq!(matched.name, Some("systemctl-isolate"));
+
+        // Safe patterns with global flags should also still short-circuit.
+        assert!(
+            pack.check("systemctl -H remote-host status sshd").is_none(),
+            "status with global flag should be treated as safe"
+        );
+        assert!(
+            pack.check("systemctl --user list-units").is_none(),
+            "list-units with --user should be treated as safe"
+        );
     }
 }

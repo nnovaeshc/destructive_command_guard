@@ -28,20 +28,20 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // Kong CLI - read operations
-        safe_pattern!("kong-version", r"kong\s+(?:version|--version|-v)\b"),
-        safe_pattern!("kong-help", r"kong\s+(?:help|--help|-h)\b"),
-        safe_pattern!("kong-health", r"kong\s+health\b"),
-        safe_pattern!("kong-check", r"kong\s+check\b"),
-        safe_pattern!("kong-config-parse", r"kong\s+config\s+(?:parse|init)\b"),
+        safe_pattern!("kong-version", r"kong(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:version|--version|-v)\b"),
+        safe_pattern!("kong-help", r"kong(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:help|--help|-h)\b"),
+        safe_pattern!("kong-health", r"kong(?:\s+--?\S+(?:\s+\S+)?)*\s+health\b"),
+        safe_pattern!("kong-check", r"kong(?:\s+--?\S+(?:\s+\S+)?)*\s+check\b"),
+        safe_pattern!("kong-config-parse", r"kong(?:\s+--?\S+(?:\s+\S+)?)*\s+config\s+(?:parse|init)\b"),
         // deck CLI - read/safe operations
-        safe_pattern!("deck-version", r"deck\s+(?:version|--version)\b"),
-        safe_pattern!("deck-help", r"deck\s+(?:help|--help|-h)\b"),
-        safe_pattern!("deck-ping", r"deck\s+ping\b"),
-        safe_pattern!("deck-dump", r"deck\s+dump\b"),
-        safe_pattern!("deck-diff", r"deck\s+diff\b"),
-        safe_pattern!("deck-validate", r"deck\s+validate\b"),
-        safe_pattern!("deck-convert", r"deck\s+convert\b"),
-        safe_pattern!("deck-file", r"deck\s+file\b"),
+        safe_pattern!("deck-version", r"deck(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:version|--version)\b"),
+        safe_pattern!("deck-help", r"deck(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:help|--help|-h)\b"),
+        safe_pattern!("deck-ping", r"deck(?:\s+--?\S+(?:\s+\S+)?)*\s+ping\b"),
+        safe_pattern!("deck-dump", r"deck(?:\s+--?\S+(?:\s+\S+)?)*\s+dump\b"),
+        safe_pattern!("deck-diff", r"deck(?:\s+--?\S+(?:\s+\S+)?)*\s+diff\b"),
+        safe_pattern!("deck-validate", r"deck(?:\s+--?\S+(?:\s+\S+)?)*\s+validate\b"),
+        safe_pattern!("deck-convert", r"deck(?:\s+--?\S+(?:\s+\S+)?)*\s+convert\b"),
+        safe_pattern!("deck-file", r"deck(?:\s+--?\S+(?:\s+\S+)?)*\s+file\b"),
         // Kong Admin API - explicit GET requests only
         safe_pattern!(
             "kong-admin-explicit-get",
@@ -55,7 +55,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // deck reset - CRITICAL! Removes all Kong config
         destructive_pattern!(
             "deck-reset",
-            r"deck\s+(?:gateway\s+)?reset\b",
+            r"deck(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:gateway\s+)?reset\b",
             "deck reset removes ALL Kong configuration. This is extremely dangerous and irreversible.",
             Critical,
             "Resetting Kong removes ALL services, routes, plugins, consumers, certificates, and \
@@ -69,7 +69,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // deck sync with --select-tag can be destructive
         destructive_pattern!(
             "deck-sync-destructive",
-            r"deck\s+(?:gateway\s+)?sync\b.*--select-tag\b",
+            r"deck(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:gateway\s+)?sync\b.*--select-tag\b",
             "deck sync with --select-tag can remove entities not matching the tag.",
             High,
             "Using --select-tag with deck sync removes entities not matching the tag in your \
@@ -407,5 +407,31 @@ mod tests {
     fn allows_non_curl_strings_with_kong_admin_tokens() {
         let pack = create_pack();
         assert_allows(&pack, "echo localhost:8001/services/my-service -X DELETE");
+    }
+
+    #[test]
+    fn global_flags_do_not_bypass() {
+        let pack = create_pack();
+        // deck accepts --kong-addr, --headers, --tls-skip-verify, etc.
+        assert_blocks_with_pattern(
+            &pack,
+            "deck --kong-addr http://localhost:8001 reset",
+            "deck-reset",
+        );
+        assert_blocks_with_pattern(
+            &pack,
+            "deck --tls-skip-verify gateway reset",
+            "deck-reset",
+        );
+        assert_blocks_with_pattern(
+            &pack,
+            "deck --headers X-Api:foo sync --select-tag production",
+            "deck-sync-destructive",
+        );
+        assert!(
+            pack.check("deck --kong-addr http://localhost:8001 dump")
+                .is_none(),
+            "safe deck dump with kong-addr flag should remain safe"
+        );
     }
 }

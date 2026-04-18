@@ -28,77 +28,77 @@ fn create_safe_patterns() -> Vec<SafePattern> {
         // gcloud apigee - list/describe operations
         safe_pattern!(
             "gcloud-apigee-apis-list",
-            r"gcloud\s+apigee\s+apis\s+list\b"
+            r"gcloud\b.*?\bapigee\s+apis\s+list\b"
         ),
         safe_pattern!(
             "gcloud-apigee-apis-describe",
-            r"gcloud\s+apigee\s+apis\s+describe\b"
+            r"gcloud\b.*?\bapigee\s+apis\s+describe\b"
         ),
         safe_pattern!(
             "gcloud-apigee-environments-list",
-            r"gcloud\s+apigee\s+environments\s+list\b"
+            r"gcloud\b.*?\bapigee\s+environments\s+list\b"
         ),
         safe_pattern!(
             "gcloud-apigee-environments-describe",
-            r"gcloud\s+apigee\s+environments\s+describe\b"
+            r"gcloud\b.*?\bapigee\s+environments\s+describe\b"
         ),
         safe_pattern!(
             "gcloud-apigee-developers-list",
-            r"gcloud\s+apigee\s+developers\s+list\b"
+            r"gcloud\b.*?\bapigee\s+developers\s+list\b"
         ),
         safe_pattern!(
             "gcloud-apigee-developers-describe",
-            r"gcloud\s+apigee\s+developers\s+describe\b"
+            r"gcloud\b.*?\bapigee\s+developers\s+describe\b"
         ),
         safe_pattern!(
             "gcloud-apigee-products-list",
-            r"gcloud\s+apigee\s+products\s+list\b"
+            r"gcloud\b.*?\bapigee\s+products\s+list\b"
         ),
         safe_pattern!(
             "gcloud-apigee-products-describe",
-            r"gcloud\s+apigee\s+products\s+describe\b"
+            r"gcloud\b.*?\bapigee\s+products\s+describe\b"
         ),
         safe_pattern!(
             "gcloud-apigee-organizations-list",
-            r"gcloud\s+apigee\s+organizations\s+list\b"
+            r"gcloud\b.*?\bapigee\s+organizations\s+list\b"
         ),
         safe_pattern!(
             "gcloud-apigee-organizations-describe",
-            r"gcloud\s+apigee\s+organizations\s+describe\b"
+            r"gcloud\b.*?\bapigee\s+organizations\s+describe\b"
         ),
         safe_pattern!(
             "gcloud-apigee-deployments-list",
-            r"gcloud\s+apigee\s+deployments\s+list\b"
+            r"gcloud\b.*?\bapigee\s+deployments\s+list\b"
         ),
         safe_pattern!(
             "gcloud-apigee-deployments-describe",
-            r"gcloud\s+apigee\s+deployments\s+describe\b"
+            r"gcloud\b.*?\bapigee\s+deployments\s+describe\b"
         ),
         // apigeecli - list operations
-        safe_pattern!("apigeecli-apis-list", r"apigeecli\s+apis\s+list\b"),
-        safe_pattern!("apigeecli-apis-get", r"apigeecli\s+apis\s+get\b"),
-        safe_pattern!("apigeecli-products-list", r"apigeecli\s+products\s+list\b"),
-        safe_pattern!("apigeecli-products-get", r"apigeecli\s+products\s+get\b"),
+        safe_pattern!("apigeecli-apis-list", r"apigeecli(?:\s+--?\S+(?:\s+\S+)?)*\s+apis\s+list\b"),
+        safe_pattern!("apigeecli-apis-get", r"apigeecli(?:\s+--?\S+(?:\s+\S+)?)*\s+apis\s+get\b"),
+        safe_pattern!("apigeecli-products-list", r"apigeecli(?:\s+--?\S+(?:\s+\S+)?)*\s+products\s+list\b"),
+        safe_pattern!("apigeecli-products-get", r"apigeecli(?:\s+--?\S+(?:\s+\S+)?)*\s+products\s+get\b"),
         safe_pattern!(
             "apigeecli-developers-list",
-            r"apigeecli\s+developers\s+list\b"
+            r"apigeecli(?:\s+--?\S+(?:\s+\S+)?)*\s+developers\s+list\b"
         ),
         safe_pattern!(
             "apigeecli-developers-get",
-            r"apigeecli\s+developers\s+get\b"
+            r"apigeecli(?:\s+--?\S+(?:\s+\S+)?)*\s+developers\s+get\b"
         ),
-        safe_pattern!("apigeecli-envs-list", r"apigeecli\s+envs\s+list\b"),
-        safe_pattern!("apigeecli-envs-get", r"apigeecli\s+envs\s+get\b"),
-        safe_pattern!("apigeecli-orgs-list", r"apigeecli\s+orgs\s+list\b"),
-        safe_pattern!("apigeecli-orgs-get", r"apigeecli\s+orgs\s+get\b"),
+        safe_pattern!("apigeecli-envs-list", r"apigeecli(?:\s+--?\S+(?:\s+\S+)?)*\s+envs\s+list\b"),
+        safe_pattern!("apigeecli-envs-get", r"apigeecli(?:\s+--?\S+(?:\s+\S+)?)*\s+envs\s+get\b"),
+        safe_pattern!("apigeecli-orgs-list", r"apigeecli(?:\s+--?\S+(?:\s+\S+)?)*\s+orgs\s+list\b"),
+        safe_pattern!("apigeecli-orgs-get", r"apigeecli(?:\s+--?\S+(?:\s+\S+)?)*\s+orgs\s+get\b"),
         // Help commands
         safe_pattern!(
             "gcloud-apigee-help",
-            r"gcloud\s+apigee\s+(?:--help|-h|help)\b"
+            r"gcloud\b.*?\bapigee\s+(?:--help|-h|help)\b"
         ),
         safe_pattern!(
             "apigeecli-help",
-            r"apigeecli\s+(?:--help|-h|help|version)\b"
+            r"apigeecli(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--help|-h|help|version)\b"
         ),
     ]
 }
@@ -108,7 +108,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // gcloud apigee - delete operations
         destructive_pattern!(
             "gcloud-apigee-apis-delete",
-            r"gcloud\s+apigee\s+apis\s+delete\b",
+            r"gcloud\b.*?\bapigee\s+apis\s+delete\b",
             "gcloud apigee apis delete removes an API proxy from Apigee.",
             High,
             "Deleting an API proxy removes all its revisions and deployment history. Any \
@@ -121,7 +121,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "gcloud-apigee-environments-delete",
-            r"gcloud\s+apigee\s+environments\s+delete\b",
+            r"gcloud\b.*?\bapigee\s+environments\s+delete\b",
             "gcloud apigee environments delete removes an Apigee environment.",
             Critical,
             "Deleting an environment removes all deployed API proxies, target servers, \
@@ -134,7 +134,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "gcloud-apigee-developers-delete",
-            r"gcloud\s+apigee\s+developers\s+delete\b",
+            r"gcloud\b.*?\bapigee\s+developers\s+delete\b",
             "gcloud apigee developers delete removes a developer from Apigee.",
             High,
             "Deleting a developer also deletes all their apps and associated API keys. \
@@ -147,7 +147,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "gcloud-apigee-products-delete",
-            r"gcloud\s+apigee\s+products\s+delete\b",
+            r"gcloud\b.*?\bapigee\s+products\s+delete\b",
             "gcloud apigee products delete removes an API product from Apigee.",
             High,
             "Deleting an API product immediately revokes access for all apps subscribed \
@@ -160,7 +160,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "gcloud-apigee-organizations-delete",
-            r"gcloud\s+apigee\s+organizations\s+delete\b",
+            r"gcloud\b.*?\bapigee\s+organizations\s+delete\b",
             "gcloud apigee organizations delete removes an entire Apigee organization.",
             Critical,
             "Deleting an organization permanently removes ALL environments, API proxies, \
@@ -173,7 +173,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "gcloud-apigee-deployments-undeploy",
-            r"gcloud\s+apigee\s+deployments\s+undeploy\b",
+            r"gcloud\b.*?\bapigee\s+deployments\s+undeploy\b",
             "gcloud apigee deployments undeploy removes an API deployment.",
             Medium,
             "Undeploying an API proxy stops all traffic processing for that API in the \
@@ -187,7 +187,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // apigeecli - delete operations
         destructive_pattern!(
             "apigeecli-apis-delete",
-            r"apigeecli\s+apis\s+delete\b",
+            r"apigeecli(?:\s+--?\S+(?:\s+\S+)?)*\s+apis\s+delete\b",
             "apigeecli apis delete removes an API proxy from Apigee.",
             High,
             "Deleting an API proxy removes all its revisions and deployment history. Any \
@@ -199,7 +199,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigeecli-products-delete",
-            r"apigeecli\s+products\s+delete\b",
+            r"apigeecli(?:\s+--?\S+(?:\s+\S+)?)*\s+products\s+delete\b",
             "apigeecli products delete removes an API product from Apigee.",
             High,
             "Deleting an API product immediately revokes access for all subscribed apps. \
@@ -211,7 +211,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigeecli-developers-delete",
-            r"apigeecli\s+developers\s+delete\b",
+            r"apigeecli(?:\s+--?\S+(?:\s+\S+)?)*\s+developers\s+delete\b",
             "apigeecli developers delete removes a developer from Apigee.",
             High,
             "Deleting a developer also deletes all their apps and API keys. Applications \
@@ -223,7 +223,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigeecli-envs-delete",
-            r"apigeecli\s+envs\s+delete\b",
+            r"apigeecli(?:\s+--?\S+(?:\s+\S+)?)*\s+envs\s+delete\b",
             "apigeecli envs delete removes an Apigee environment.",
             Critical,
             "Deleting an environment removes all deployed proxies, target servers, and \
@@ -235,7 +235,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigeecli-orgs-delete",
-            r"apigeecli\s+orgs\s+delete\b",
+            r"apigeecli(?:\s+--?\S+(?:\s+\S+)?)*\s+orgs\s+delete\b",
             "apigeecli orgs delete removes an entire Apigee organization.",
             Critical,
             "Deleting an organization permanently removes ALL resources: environments, \
@@ -247,7 +247,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigeecli-apps-delete",
-            r"apigeecli\s+apps\s+delete\b",
+            r"apigeecli(?:\s+--?\S+(?:\s+\S+)?)*\s+apps\s+delete\b",
             "apigeecli apps delete removes a developer app from Apigee.",
             High,
             "Deleting an app revokes all its API keys and credentials. Any systems using \
@@ -259,7 +259,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigeecli-keyvaluemaps-delete",
-            r"apigeecli\s+keyvaluemaps\s+delete\b",
+            r"apigeecli(?:\s+--?\S+(?:\s+\S+)?)*\s+keyvaluemaps\s+delete\b",
             "apigeecli keyvaluemaps delete removes a key-value map from Apigee.",
             High,
             "Deleting a KVM removes all stored key-value pairs. API proxies reading from \
@@ -272,7 +272,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigeecli-targetservers-delete",
-            r"apigeecli\s+targetservers\s+delete\b",
+            r"apigeecli(?:\s+--?\S+(?:\s+\S+)?)*\s+targetservers\s+delete\b",
             "apigeecli targetservers delete removes a target server from Apigee.",
             High,
             "Deleting a target server breaks all API proxies that route traffic to it. \
@@ -479,6 +479,41 @@ mod tests {
             &pack,
             "apigeecli targetservers delete --name backend-server",
             "apigeecli-targetservers-delete",
+        );
+    }
+
+    #[test]
+    fn global_flags_do_not_bypass() {
+        let pack = create_pack();
+        // gcloud supports --project, --quiet, --verbosity, etc. before the command group.
+        // apigeecli supports --token, --org, --config, etc. before the subcommand.
+        assert_blocks_with_pattern(
+            &pack,
+            "gcloud --project my-project apigee apis delete my-api",
+            "gcloud-apigee-apis-delete",
+        );
+        assert_blocks_with_pattern(
+            &pack,
+            "gcloud --quiet --project p apigee organizations delete my-org",
+            "gcloud-apigee-organizations-delete",
+        );
+        assert_blocks_with_pattern(
+            &pack,
+            "apigeecli --token abc apis delete --name my-api",
+            "apigeecli-apis-delete",
+        );
+        assert_blocks_with_pattern(
+            &pack,
+            "apigeecli --org my-org envs delete --name prod",
+            "apigeecli-envs-delete",
+        );
+        assert!(
+            pack.check("gcloud --project p apigee apis list").is_none(),
+            "safe list with global flag should remain safe"
+        );
+        assert!(
+            pack.check("apigeecli --token abc apis list").is_none(),
+            "safe list with token flag should remain safe"
         );
     }
 }

@@ -151,7 +151,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // Systemctl/service operations
         destructive_pattern!(
             "traefik-systemctl-stop",
-            r"systemctl\s+stop\s+traefik(?:\.service)?\b",
+            r"systemctl\b.*?\s+stop\s+traefik(?:\.service)?\b",
             "systemctl stop traefik stops the Traefik service.",
             High,
             "Stopping the Traefik systemd service shuts down the load balancer process. \

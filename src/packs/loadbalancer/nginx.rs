@@ -34,7 +34,7 @@ fn create_safe_patterns() -> Vec<SafePattern> {
         safe_pattern!("nginx-reload", r"nginx\s+-s\s+reload\b"),
         safe_pattern!(
             "systemctl-status-nginx",
-            r"systemctl\s+status\s+nginx(?:\.service)?\b"
+            r"systemctl\b.*?\s+status\s+nginx(?:\.service)?\b"
         ),
         safe_pattern!("service-status-nginx", r"service\s+nginx\s+status\b"),
     ]
@@ -70,7 +70,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "systemctl-stop-nginx",
-            r"systemctl\s+stop\s+nginx(?:\.service)?\b",
+            r"systemctl\b.*?\s+stop\s+nginx(?:\.service)?\b",
             "systemctl stop nginx stops the nginx service and disrupts traffic.",
             High,
             "Stopping the nginx systemd service shuts down all nginx worker processes. \
@@ -147,5 +147,24 @@ mod tests {
         assert_blocks_with_pattern(&pack, "systemctl stop nginx", "systemctl-stop-nginx");
         assert_blocks_with_pattern(&pack, "service nginx stop", "service-stop-nginx");
         assert_blocks_with_pattern(&pack, "rm -f /etc/nginx/nginx.conf", "nginx-config-delete");
+    }
+
+    #[test]
+    fn systemctl_global_flags_do_not_bypass() {
+        let pack = create_pack();
+        assert_blocks_with_pattern(
+            &pack,
+            "systemctl -H remote-host stop nginx",
+            "systemctl-stop-nginx",
+        );
+        assert_blocks_with_pattern(
+            &pack,
+            "systemctl --user stop nginx.service",
+            "systemctl-stop-nginx",
+        );
+        assert!(
+            pack.check("systemctl -H host status nginx").is_none(),
+            "status with global flag should short-circuit as safe"
+        );
     }
 }

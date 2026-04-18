@@ -30,29 +30,29 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // Account/auth info
-        safe_pattern!("wrangler-whoami", r"wrangler\s+whoami\b"),
+        safe_pattern!("wrangler-whoami", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+whoami\b"),
         // KV read operations
-        safe_pattern!("wrangler-kv-get", r"wrangler\s+kv:key\s+get\b"),
-        safe_pattern!("wrangler-kv-list", r"wrangler\s+kv:key\s+list\b"),
+        safe_pattern!("wrangler-kv-get", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+kv:key\s+get\b"),
+        safe_pattern!("wrangler-kv-list", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+kv:key\s+list\b"),
         safe_pattern!(
             "wrangler-kv-namespace-list",
-            r"wrangler\s+kv:namespace\s+list\b"
+            r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+kv:namespace\s+list\b"
         ),
         // R2 read operations
-        safe_pattern!("wrangler-r2-object-get", r"wrangler\s+r2\s+object\s+get\b"),
+        safe_pattern!("wrangler-r2-object-get", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+r2\s+object\s+get\b"),
         safe_pattern!(
             "wrangler-r2-bucket-list",
-            r"wrangler\s+r2\s+bucket\s+list\b"
+            r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+r2\s+bucket\s+list\b"
         ),
         // D1 read operations
-        safe_pattern!("wrangler-d1-list", r"wrangler\s+d1\s+list\b"),
-        safe_pattern!("wrangler-d1-info", r"wrangler\s+d1\s+info\b"),
+        safe_pattern!("wrangler-d1-list", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+d1\s+list\b"),
+        safe_pattern!("wrangler-d1-info", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+d1\s+info\b"),
         // Development/debugging
-        safe_pattern!("wrangler-dev", r"wrangler\s+dev\b"),
-        safe_pattern!("wrangler-tail", r"wrangler\s+tail\b"),
+        safe_pattern!("wrangler-dev", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+dev\b"),
+        safe_pattern!("wrangler-tail", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+tail\b"),
         // Version/help
-        safe_pattern!("wrangler-version", r"wrangler\s+(?:-v|--version|version)\b"),
-        safe_pattern!("wrangler-help", r"wrangler\s+(?:-h|--help|help)\b"),
+        safe_pattern!("wrangler-version", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:-v|--version|version)\b"),
+        safe_pattern!("wrangler-help", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:-h|--help|help)\b"),
     ]
 }
 
@@ -61,7 +61,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // Worker deletion
         destructive_pattern!(
             "wrangler-delete",
-            r"wrangler\s+delete\b",
+            r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+delete\b",
             "wrangler delete removes a Worker from Cloudflare.",
             Critical,
             "Deleting a Cloudflare Worker immediately stops all edge processing for that \
@@ -75,7 +75,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // Deployment rollback (can break things)
         destructive_pattern!(
             "wrangler-deployments-rollback",
-            r"wrangler\s+deployments\s+rollback\b",
+            r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+deployments\s+rollback\b",
             "wrangler deployments rollback reverts to a previous Worker version.",
             High,
             "Rolling back a deployment replaces your current Worker code with a previous \
@@ -89,7 +89,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // KV destructive operations
         destructive_pattern!(
             "wrangler-kv-key-delete",
-            r"wrangler\s+kv:key\s+delete\b",
+            r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+kv:key\s+delete\b",
             "wrangler kv:key delete removes a key from KV storage.",
             Medium,
             "Deleting a KV key immediately removes the data at all edge locations. \
@@ -102,7 +102,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "wrangler-kv-namespace-delete",
-            r"wrangler\s+kv:namespace\s+delete\b",
+            r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+kv:namespace\s+delete\b",
             "wrangler kv:namespace delete removes an entire KV namespace.",
             Critical,
             "Deleting a KV namespace permanently removes ALL keys and values within it. \
@@ -115,7 +115,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "wrangler-kv-bulk-delete",
-            r"wrangler\s+kv:bulk\s+delete\b",
+            r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+kv:bulk\s+delete\b",
             "wrangler kv:bulk delete removes multiple keys from KV storage.",
             High,
             "Bulk delete removes many KV keys at once based on a JSON file. This is \
@@ -129,7 +129,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // R2 destructive operations
         destructive_pattern!(
             "wrangler-r2-object-delete",
-            r"wrangler\s+r2\s+object\s+delete\b",
+            r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+r2\s+object\s+delete\b",
             "wrangler r2 object delete removes an object from R2 storage.",
             Medium,
             "Deleting an R2 object permanently removes the file from storage. Any URLs \
@@ -142,7 +142,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "wrangler-r2-bucket-delete",
-            r"wrangler\s+r2\s+bucket\s+delete\b",
+            r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+r2\s+bucket\s+delete\b",
             "wrangler r2 bucket delete removes an entire R2 bucket.",
             Critical,
             "Deleting an R2 bucket removes the bucket and ALL objects within it. Workers \
@@ -156,7 +156,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // D1 destructive operations
         destructive_pattern!(
             "wrangler-d1-delete",
-            r"wrangler\s+d1\s+delete\b",
+            r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+d1\s+delete\b",
             "wrangler d1 delete removes a D1 database.",
             Critical,
             "Deleting a D1 database permanently removes all tables, data, and schema. \
@@ -253,5 +253,30 @@ mod tests {
         );
         // D1
         assert_blocks_with_pattern(&pack, "wrangler d1 delete my-db", "wrangler-d1-delete");
+    }
+
+    #[test]
+    fn global_flags_do_not_bypass() {
+        let pack = create_pack();
+        // wrangler accepts --config, --cwd, --env, --verbose global flags.
+        assert_blocks_with_pattern(
+            &pack,
+            "wrangler --config wrangler.toml delete my-worker",
+            "wrangler-delete",
+        );
+        assert_blocks_with_pattern(
+            &pack,
+            "wrangler --env prod d1 delete my-db",
+            "wrangler-d1-delete",
+        );
+        assert_blocks_with_pattern(
+            &pack,
+            "wrangler --cwd ./project r2 bucket delete my-bucket",
+            "wrangler-r2-bucket-delete",
+        );
+        assert!(
+            pack.check("wrangler --env prod whoami").is_none(),
+            "safe read with env flag should remain safe"
+        );
     }
 }

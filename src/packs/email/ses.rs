@@ -30,92 +30,92 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // SES v1 read operations
-        safe_pattern!("ses-list-identities", r"\baws\s+ses\s+list-identities\b"),
-        safe_pattern!("ses-list-templates", r"\baws\s+ses\s+list-templates\b"),
+        safe_pattern!("ses-list-identities", r"\baws\b.*?\bses\s+list-identities\b"),
+        safe_pattern!("ses-list-templates", r"\baws\b.*?\bses\s+list-templates\b"),
         safe_pattern!(
             "ses-list-configuration-sets",
-            r"\baws\s+ses\s+list-configuration-sets\b"
+            r"\baws\b.*?\bses\s+list-configuration-sets\b"
         ),
         safe_pattern!(
             "ses-list-receipt-rules",
-            r"\baws\s+ses\s+list-receipt-rules\b"
+            r"\baws\b.*?\bses\s+list-receipt-rules\b"
         ),
         safe_pattern!(
             "ses-list-receipt-rule-sets",
-            r"\baws\s+ses\s+list-receipt-rule-sets\b"
+            r"\baws\b.*?\bses\s+list-receipt-rule-sets\b"
         ),
         safe_pattern!(
             "ses-get-identity-verification-attributes",
-            r"\baws\s+ses\s+get-identity-verification-attributes\b"
+            r"\baws\b.*?\bses\s+get-identity-verification-attributes\b"
         ),
         safe_pattern!(
             "ses-get-identity-dkim-attributes",
-            r"\baws\s+ses\s+get-identity-dkim-attributes\b"
+            r"\baws\b.*?\bses\s+get-identity-dkim-attributes\b"
         ),
         safe_pattern!(
             "ses-get-identity-notification-attributes",
-            r"\baws\s+ses\s+get-identity-notification-attributes\b"
+            r"\baws\b.*?\bses\s+get-identity-notification-attributes\b"
         ),
-        safe_pattern!("ses-get-template", r"\baws\s+ses\s+get-template\b"),
+        safe_pattern!("ses-get-template", r"\baws\b.*?\bses\s+get-template\b"),
         safe_pattern!(
             "ses-describe-configuration-set",
-            r"\baws\s+ses\s+describe-configuration-set\b"
+            r"\baws\b.*?\bses\s+describe-configuration-set\b"
         ),
         safe_pattern!(
             "ses-describe-receipt-rule",
-            r"\baws\s+ses\s+describe-receipt-rule\b"
+            r"\baws\b.*?\bses\s+describe-receipt-rule\b"
         ),
         safe_pattern!(
             "ses-describe-receipt-rule-set",
-            r"\baws\s+ses\s+describe-receipt-rule-set\b"
+            r"\baws\b.*?\bses\s+describe-receipt-rule-set\b"
         ),
-        safe_pattern!("ses-get-send-quota", r"\baws\s+ses\s+get-send-quota\b"),
+        safe_pattern!("ses-get-send-quota", r"\baws\b.*?\bses\s+get-send-quota\b"),
         safe_pattern!(
             "ses-get-send-statistics",
-            r"\baws\s+ses\s+get-send-statistics\b"
+            r"\baws\b.*?\bses\s+get-send-statistics\b"
         ),
         // SES v2 read operations
         safe_pattern!(
             "sesv2-list-email-identities",
-            r"\baws\s+sesv2\s+list-email-identities\b"
+            r"\baws\b.*?\bsesv2\s+list-email-identities\b"
         ),
         safe_pattern!(
             "sesv2-list-email-templates",
-            r"\baws\s+sesv2\s+list-email-templates\b"
+            r"\baws\b.*?\bsesv2\s+list-email-templates\b"
         ),
         safe_pattern!(
             "sesv2-list-configuration-sets",
-            r"\baws\s+sesv2\s+list-configuration-sets\b"
+            r"\baws\b.*?\bsesv2\s+list-configuration-sets\b"
         ),
         safe_pattern!(
             "sesv2-list-contact-lists",
-            r"\baws\s+sesv2\s+list-contact-lists\b"
+            r"\baws\b.*?\bsesv2\s+list-contact-lists\b"
         ),
         safe_pattern!(
             "sesv2-list-dedicated-ip-pools",
-            r"\baws\s+sesv2\s+list-dedicated-ip-pools\b"
+            r"\baws\b.*?\bsesv2\s+list-dedicated-ip-pools\b"
         ),
         safe_pattern!(
             "sesv2-get-email-identity",
-            r"\baws\s+sesv2\s+get-email-identity\b"
+            r"\baws\b.*?\bsesv2\s+get-email-identity\b"
         ),
         safe_pattern!(
             "sesv2-get-email-template",
-            r"\baws\s+sesv2\s+get-email-template\b"
+            r"\baws\b.*?\bsesv2\s+get-email-template\b"
         ),
         safe_pattern!(
             "sesv2-get-configuration-set",
-            r"\baws\s+sesv2\s+get-configuration-set\b"
+            r"\baws\b.*?\bsesv2\s+get-configuration-set\b"
         ),
         safe_pattern!(
             "sesv2-get-contact-list",
-            r"\baws\s+sesv2\s+get-contact-list\b"
+            r"\baws\b.*?\bsesv2\s+get-contact-list\b"
         ),
         safe_pattern!(
             "sesv2-get-dedicated-ip-pool",
-            r"\baws\s+sesv2\s+get-dedicated-ip-pool\b"
+            r"\baws\b.*?\bsesv2\s+get-dedicated-ip-pool\b"
         ),
-        safe_pattern!("sesv2-get-account", r"\baws\s+sesv2\s+get-account\b"),
+        safe_pattern!("sesv2-get-account", r"\baws\b.*?\bsesv2\s+get-account\b"),
     ]
 }
 
@@ -124,7 +124,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // SES v1 deletion operations
         destructive_pattern!(
             "ses-delete-identity",
-            r"\baws\s+ses\s+delete-identity\b",
+            r"\baws\b.*?\bses\s+delete-identity\b",
             "aws ses delete-identity removes a verified email identity.",
             High,
             "Deleting a verified identity prevents sending from that address or domain. \
@@ -137,7 +137,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "ses-delete-template",
-            r"\baws\s+ses\s+delete-template\b",
+            r"\baws\b.*?\bses\s+delete-template\b",
             "aws ses delete-template removes an email template.",
             Medium,
             "Deleting a template breaks any applications that reference it. Emails using \
@@ -149,7 +149,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "ses-delete-configuration-set",
-            r"\baws\s+ses\s+delete-configuration-set\b",
+            r"\baws\b.*?\bses\s+delete-configuration-set\b",
             "aws ses delete-configuration-set removes a configuration set.",
             High,
             "Deleting a configuration set removes tracking and event destinations. \
@@ -162,7 +162,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "ses-delete-receipt-rule-set",
-            r"\baws\s+ses\s+delete-receipt-rule-set\b",
+            r"\baws\b.*?\bses\s+delete-receipt-rule-set\b",
             "aws ses delete-receipt-rule-set removes a receipt rule set.",
             Critical,
             "Deleting a receipt rule set stops all email receiving configured by that set. \
@@ -174,7 +174,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "ses-delete-receipt-rule",
-            r"\baws\s+ses\s+delete-receipt-rule(?:\s|$)",
+            r"\baws\b.*?\bses\s+delete-receipt-rule(?:\s|$)",
             "aws ses delete-receipt-rule removes a receipt rule.",
             High,
             "Deleting a receipt rule changes how incoming emails are processed. Actions \
@@ -188,7 +188,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // SES v2 deletion operations
         destructive_pattern!(
             "sesv2-delete-email-identity",
-            r"\baws\s+sesv2\s+delete-email-identity\b",
+            r"\baws\b.*?\bsesv2\s+delete-email-identity\b",
             "aws sesv2 delete-email-identity removes a verified email identity.",
             High,
             "Deleting a verified identity prevents sending from that address or domain. \
@@ -201,7 +201,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "sesv2-delete-email-template",
-            r"\baws\s+sesv2\s+delete-email-template\b",
+            r"\baws\b.*?\bsesv2\s+delete-email-template\b",
             "aws sesv2 delete-email-template removes an email template.",
             Medium,
             "Deleting a template breaks any send operations referencing it. Bulk email \
@@ -213,7 +213,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "sesv2-delete-configuration-set",
-            r"\baws\s+sesv2\s+delete-configuration-set\b",
+            r"\baws\b.*?\bsesv2\s+delete-configuration-set\b",
             "aws sesv2 delete-configuration-set removes a configuration set.",
             High,
             "Deleting a configuration set removes all event destinations, tracking options, \
@@ -226,7 +226,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "sesv2-delete-contact-list",
-            r"\baws\s+sesv2\s+delete-contact-list\b",
+            r"\baws\b.*?\bsesv2\s+delete-contact-list\b",
             "aws sesv2 delete-contact-list removes a contact list.",
             High,
             "Deleting a contact list permanently removes all contacts and their preferences. \
@@ -238,7 +238,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "sesv2-delete-dedicated-ip-pool",
-            r"\baws\s+sesv2\s+delete-dedicated-ip-pool\b",
+            r"\baws\b.*?\bsesv2\s+delete-dedicated-ip-pool\b",
             "aws sesv2 delete-dedicated-ip-pool removes a dedicated IP pool.",
             Critical,
             "Deleting a dedicated IP pool releases the IPs back to the shared pool. \
@@ -373,6 +373,25 @@ mod tests {
             &pack,
             "aws sesv2 delete-dedicated-ip-pool --pool-name MyPool",
             "sesv2-delete-dedicated-ip-pool",
+        );
+    }
+
+    #[test]
+    fn aws_global_flags_do_not_bypass() {
+        let pack = create_pack();
+        assert_blocks_with_pattern(
+            &pack,
+            "aws --profile prod ses delete-identity --identity example.com",
+            "ses-delete-identity",
+        );
+        assert_blocks_with_pattern(
+            &pack,
+            "aws --region us-east-1 --profile prod sesv2 delete-contact-list --contact-list-name X",
+            "sesv2-delete-contact-list",
+        );
+        assert!(
+            pack.check("aws --profile prod ses list-identities").is_none(),
+            "safe read with global flag should remain safe"
         );
     }
 }

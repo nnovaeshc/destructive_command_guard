@@ -26,29 +26,29 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // split CLI - list/get operations
-        safe_pattern!("split-splits-list", r"split\s+splits\s+list\b"),
-        safe_pattern!("split-splits-get", r"split\s+splits\s+get\b"),
-        safe_pattern!("split-splits-create", r"split\s+splits\s+create\b"),
-        safe_pattern!("split-splits-update", r"split\s+splits\s+update\b"),
-        safe_pattern!("split-environments-list", r"split\s+environments\s+list\b"),
-        safe_pattern!("split-environments-get", r"split\s+environments\s+get\b"),
+        safe_pattern!("split-splits-list", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+splits\s+list\b"),
+        safe_pattern!("split-splits-get", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+splits\s+get\b"),
+        safe_pattern!("split-splits-create", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+splits\s+create\b"),
+        safe_pattern!("split-splits-update", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+splits\s+update\b"),
+        safe_pattern!("split-environments-list", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+environments\s+list\b"),
+        safe_pattern!("split-environments-get", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+environments\s+get\b"),
         safe_pattern!(
             "split-environments-create",
-            r"split\s+environments\s+create\b"
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+environments\s+create\b"
         ),
-        safe_pattern!("split-segments-list", r"split\s+segments\s+list\b"),
-        safe_pattern!("split-segments-get", r"split\s+segments\s+get\b"),
-        safe_pattern!("split-segments-create", r"split\s+segments\s+create\b"),
+        safe_pattern!("split-segments-list", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+segments\s+list\b"),
+        safe_pattern!("split-segments-get", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+segments\s+get\b"),
+        safe_pattern!("split-segments-create", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+segments\s+create\b"),
         safe_pattern!(
             "split-traffic-types-list",
-            r"split\s+traffic-types\s+list\b"
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+traffic-types\s+list\b"
         ),
-        safe_pattern!("split-traffic-types-get", r"split\s+traffic-types\s+get\b"),
-        safe_pattern!("split-workspaces-list", r"split\s+workspaces\s+list\b"),
-        safe_pattern!("split-workspaces-get", r"split\s+workspaces\s+get\b"),
+        safe_pattern!("split-traffic-types-get", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+traffic-types\s+get\b"),
+        safe_pattern!("split-workspaces-list", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+workspaces\s+list\b"),
+        safe_pattern!("split-workspaces-get", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+workspaces\s+get\b"),
         // Help and version commands
-        safe_pattern!("split-help", r"split\s+(?:--help|-h|help)\b"),
-        safe_pattern!("split-version", r"split\s+(?:--version|version)\b"),
+        safe_pattern!("split-help", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--help|-h|help)\b"),
+        safe_pattern!("split-version", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--version|version)\b"),
         // API - GET requests
         safe_pattern!(
             "split-api-get",
@@ -62,7 +62,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // split CLI - delete operations
         destructive_pattern!(
             "split-splits-delete",
-            r"split\s+splits\s+delete\b",
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+splits\s+delete\b",
             "split splits delete permanently removes a split definition. This cannot be undone.",
             Critical,
             "Deleting a split permanently removes the feature flag definition and all its \
@@ -75,7 +75,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "split-splits-kill",
-            r"split\s+splits\s+kill\b",
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+splits\s+kill\b",
             "split splits kill terminates a split, stopping all traffic to treatments.",
             High,
             "Killing a split immediately stops all treatment assignment and returns the \
@@ -88,7 +88,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "split-environments-delete",
-            r"split\s+environments\s+delete\b",
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+environments\s+delete\b",
             "split environments delete removes an environment and all its configurations.",
             Critical,
             "Deleting an environment removes all split configurations, targeting rules, \
@@ -101,7 +101,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "split-segments-delete",
-            r"split\s+segments\s+delete\b",
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+segments\s+delete\b",
             "split segments delete removes a segment and its targeting rules.",
             High,
             "Deleting a segment removes user grouping definitions. Splits targeting this \
@@ -114,7 +114,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "split-traffic-types-delete",
-            r"split\s+traffic-types\s+delete\b",
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+traffic-types\s+delete\b",
             "split traffic-types delete removes a traffic type. This affects all splits using it.",
             Critical,
             "Deleting a traffic type affects ALL splits configured for that traffic type. \
@@ -127,7 +127,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "split-workspaces-delete",
-            r"split\s+workspaces\s+delete\b",
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+workspaces\s+delete\b",
             "split workspaces delete removes a workspace and all its resources.",
             Critical,
             "Deleting a workspace removes ALL splits, segments, environments, and API keys \
@@ -335,5 +335,25 @@ mod tests {
         let pack = create_pack();
         assert_allows(&pack, "echo split");
         assert_allows(&pack, "cat split.log");
+    }
+
+    #[test]
+    fn global_flags_do_not_bypass() {
+        let pack = create_pack();
+        // split CLI accepts --apikey, --workspace, --format global flags.
+        assert_blocks_with_pattern(
+            &pack,
+            "split --apikey abc123 splits delete my-split",
+            "split-splits-delete",
+        );
+        assert_blocks_with_pattern(
+            &pack,
+            "split --workspace ws --apikey abc workspaces delete ws2",
+            "split-workspaces-delete",
+        );
+        assert!(
+            pack.check("split --apikey abc123 splits list").is_none(),
+            "safe list with global flag should remain safe"
+        );
     }
 }

@@ -26,27 +26,27 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // ldcli - list/get operations
-        safe_pattern!("ldcli-flags-list", r"ldcli\s+flags\s+list\b"),
-        safe_pattern!("ldcli-flags-get", r"ldcli\s+flags\s+get\b"),
-        safe_pattern!("ldcli-flags-create", r"ldcli\s+flags\s+create\b"),
-        safe_pattern!("ldcli-flags-update", r"ldcli\s+flags\s+update\b"),
-        safe_pattern!("ldcli-projects-list", r"ldcli\s+projects\s+list\b"),
-        safe_pattern!("ldcli-projects-get", r"ldcli\s+projects\s+get\b"),
-        safe_pattern!("ldcli-projects-create", r"ldcli\s+projects\s+create\b"),
-        safe_pattern!("ldcli-environments-list", r"ldcli\s+environments\s+list\b"),
-        safe_pattern!("ldcli-environments-get", r"ldcli\s+environments\s+get\b"),
+        safe_pattern!("ldcli-flags-list", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+flags\s+list\b"),
+        safe_pattern!("ldcli-flags-get", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+flags\s+get\b"),
+        safe_pattern!("ldcli-flags-create", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+flags\s+create\b"),
+        safe_pattern!("ldcli-flags-update", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+flags\s+update\b"),
+        safe_pattern!("ldcli-projects-list", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+projects\s+list\b"),
+        safe_pattern!("ldcli-projects-get", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+projects\s+get\b"),
+        safe_pattern!("ldcli-projects-create", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+projects\s+create\b"),
+        safe_pattern!("ldcli-environments-list", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+environments\s+list\b"),
+        safe_pattern!("ldcli-environments-get", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+environments\s+get\b"),
         safe_pattern!(
             "ldcli-environments-create",
-            r"ldcli\s+environments\s+create\b"
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+environments\s+create\b"
         ),
-        safe_pattern!("ldcli-segments-list", r"ldcli\s+segments\s+list\b"),
-        safe_pattern!("ldcli-segments-get", r"ldcli\s+segments\s+get\b"),
-        safe_pattern!("ldcli-segments-create", r"ldcli\s+segments\s+create\b"),
-        safe_pattern!("ldcli-metrics-list", r"ldcli\s+metrics\s+list\b"),
-        safe_pattern!("ldcli-metrics-get", r"ldcli\s+metrics\s+get\b"),
+        safe_pattern!("ldcli-segments-list", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+segments\s+list\b"),
+        safe_pattern!("ldcli-segments-get", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+segments\s+get\b"),
+        safe_pattern!("ldcli-segments-create", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+segments\s+create\b"),
+        safe_pattern!("ldcli-metrics-list", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+metrics\s+list\b"),
+        safe_pattern!("ldcli-metrics-get", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+metrics\s+get\b"),
         // Help and version commands
-        safe_pattern!("ldcli-help", r"ldcli\s+(?:--help|-h|help)\b"),
-        safe_pattern!("ldcli-version", r"ldcli\s+(?:--version|version)\b"),
+        safe_pattern!("ldcli-help", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--help|-h|help)\b"),
+        safe_pattern!("ldcli-version", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--version|version)\b"),
         // API - GET requests
         safe_pattern!(
             "launchdarkly-api-get",
@@ -60,7 +60,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // ldcli - delete operations
         destructive_pattern!(
             "ldcli-flags-delete",
-            r"ldcli\s+flags\s+delete\b",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+flags\s+delete\b",
             "ldcli flags delete permanently removes a feature flag. This cannot be undone.",
             Critical,
             "Deleting a LaunchDarkly flag permanently removes it from all environments. \
@@ -73,7 +73,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "ldcli-flags-archive",
-            r"ldcli\s+flags\s+archive\b",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+flags\s+archive\b",
             "ldcli flags archive soft-deletes a feature flag. While recoverable, this affects all environments.",
             High,
             "Archiving a flag removes it from the flag list and evaluation. While archived \
@@ -86,7 +86,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "ldcli-projects-delete",
-            r"ldcli\s+projects\s+delete\b",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+projects\s+delete\b",
             "ldcli projects delete removes an entire project and all its flags, environments, and settings.",
             Critical,
             "Deleting a project removes ALL flags, environments, segments, and metrics \
@@ -99,7 +99,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "ldcli-environments-delete",
-            r"ldcli\s+environments\s+delete\b",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+environments\s+delete\b",
             "ldcli environments delete removes an environment and all its flag configurations.",
             Critical,
             "Deleting an environment removes all flag configurations, targeting rules, \
@@ -112,7 +112,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "ldcli-segments-delete",
-            r"ldcli\s+segments\s+delete\b",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+segments\s+delete\b",
             "ldcli segments delete removes a user segment and its targeting rules.",
             High,
             "Deleting a segment removes user grouping rules across all environments. \
@@ -125,7 +125,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "ldcli-metrics-delete",
-            r"ldcli\s+metrics\s+delete\b",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+metrics\s+delete\b",
             "ldcli metrics delete removes a metric and its experiment data.",
             High,
             "Deleting a metric removes the metric definition and all associated \
@@ -373,5 +373,25 @@ mod tests {
         // Unrelated commands should not match safe patterns but also not be blocked
         assert_allows(&pack, "echo launchdarkly");
         assert_allows(&pack, "cat ldcli.log");
+    }
+
+    #[test]
+    fn global_flags_do_not_bypass() {
+        let pack = create_pack();
+        // ldcli accepts --access-token, --base-uri, --output, --project flags.
+        assert_blocks_with_pattern(
+            &pack,
+            "ldcli --access-token abc --project my-project flags delete my-flag",
+            "ldcli-flags-delete",
+        );
+        assert_blocks_with_pattern(
+            &pack,
+            "ldcli --base-uri https://ld.example.com projects delete my-project",
+            "ldcli-projects-delete",
+        );
+        assert!(
+            pack.check("ldcli --access-token abc flags list").is_none(),
+            "safe list with token flag should remain safe"
+        );
     }
 }

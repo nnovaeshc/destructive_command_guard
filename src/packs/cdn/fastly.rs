@@ -29,26 +29,26 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // Service list/describe
-        safe_pattern!("fastly-service-list", r"fastly\s+service\s+list\b"),
-        safe_pattern!("fastly-service-describe", r"fastly\s+service\s+describe\b"),
-        safe_pattern!("fastly-service-search", r"fastly\s+service\s+search\b"),
+        safe_pattern!("fastly-service-list", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+service\s+list\b"),
+        safe_pattern!("fastly-service-describe", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+service\s+describe\b"),
+        safe_pattern!("fastly-service-search", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+service\s+search\b"),
         // Domain list
-        safe_pattern!("fastly-domain-list", r"fastly\s+domain\s+list\b"),
-        safe_pattern!("fastly-domain-describe", r"fastly\s+domain\s+describe\b"),
+        safe_pattern!("fastly-domain-list", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+domain\s+list\b"),
+        safe_pattern!("fastly-domain-describe", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+domain\s+describe\b"),
         // Backend list
-        safe_pattern!("fastly-backend-list", r"fastly\s+backend\s+list\b"),
-        safe_pattern!("fastly-backend-describe", r"fastly\s+backend\s+describe\b"),
+        safe_pattern!("fastly-backend-list", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+backend\s+list\b"),
+        safe_pattern!("fastly-backend-describe", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+backend\s+describe\b"),
         // VCL list/show
-        safe_pattern!("fastly-vcl-list", r"fastly\s+vcl\s+list\b"),
-        safe_pattern!("fastly-vcl-describe", r"fastly\s+vcl\s+describe\b"),
+        safe_pattern!("fastly-vcl-list", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+vcl\s+list\b"),
+        safe_pattern!("fastly-vcl-describe", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+vcl\s+describe\b"),
         // Version list
-        safe_pattern!("fastly-version-list", r"fastly\s+version\s+list\b"),
+        safe_pattern!("fastly-version-list", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+version\s+list\b"),
         // Account/profile
-        safe_pattern!("fastly-whoami", r"fastly\s+whoami\b"),
-        safe_pattern!("fastly-profile", r"fastly\s+profile\b"),
+        safe_pattern!("fastly-whoami", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+whoami\b"),
+        safe_pattern!("fastly-profile", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+profile\b"),
         // Version/help
-        safe_pattern!("fastly-version", r"fastly\s+(?:-v|--version|version)\b"),
-        safe_pattern!("fastly-help", r"fastly\s+(?:-h|--help|help)\b"),
+        safe_pattern!("fastly-version", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:-v|--version|version)\b"),
+        safe_pattern!("fastly-help", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:-h|--help|help)\b"),
     ]
 }
 
@@ -57,7 +57,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // Service deletion
         destructive_pattern!(
             "fastly-service-delete",
-            r"fastly\s+service\s+delete\b",
+            r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+service\s+delete\b",
             "fastly service delete removes a Fastly service entirely.",
             Critical,
             "Deleting a Fastly service removes ALL associated domains, backends, VCL, \
@@ -71,7 +71,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // Domain deletion
         destructive_pattern!(
             "fastly-domain-delete",
-            r"fastly\s+domain\s+delete\b",
+            r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+domain\s+delete\b",
             "fastly domain delete removes a domain from a service.",
             High,
             "Removing a domain from a Fastly service immediately stops CDN handling \
@@ -85,7 +85,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // Backend deletion
         destructive_pattern!(
             "fastly-backend-delete",
-            r"fastly\s+backend\s+delete\b",
+            r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+backend\s+delete\b",
             "fastly backend delete removes a backend origin server.",
             High,
             "Deleting a backend removes an origin server from the service. If VCL or \
@@ -99,7 +99,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // VCL deletion
         destructive_pattern!(
             "fastly-vcl-delete",
-            r"fastly\s+vcl\s+delete\b",
+            r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+vcl\s+delete\b",
             "fastly vcl delete removes VCL configuration.",
             High,
             "Deleting VCL removes custom edge logic including routing, caching rules, \
@@ -113,7 +113,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // Dictionary deletion
         destructive_pattern!(
             "fastly-dictionary-delete",
-            r"fastly\s+dictionary\s+delete\b",
+            r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+dictionary\s+delete\b",
             "fastly dictionary delete removes an edge dictionary.",
             High,
             "Deleting an edge dictionary removes key-value configuration data used by \
@@ -127,7 +127,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // Dictionary item deletion
         destructive_pattern!(
             "fastly-dictionary-item-delete",
-            r"fastly\s+dictionary-item\s+delete\b",
+            r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+dictionary-item\s+delete\b",
             "fastly dictionary-item delete removes dictionary entries.",
             Medium,
             "Deleting dictionary items removes edge configuration values. VCL lookups \
@@ -141,7 +141,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // ACL deletion
         destructive_pattern!(
             "fastly-acl-delete",
-            r"fastly\s+acl\s+delete\b",
+            r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+acl\s+delete\b",
             "fastly acl delete removes an access control list.",
             High,
             "Deleting an ACL removes IP allowlist or blocklist configuration. Security \
@@ -155,7 +155,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // ACL entry deletion
         destructive_pattern!(
             "fastly-acl-entry-delete",
-            r"fastly\s+acl-entry\s+delete\b",
+            r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+acl-entry\s+delete\b",
             "fastly acl-entry delete removes ACL entries.",
             Medium,
             "Removing ACL entries changes IP matching behavior. Removing an IP from a \
@@ -169,7 +169,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // Logging endpoint deletion
         destructive_pattern!(
             "fastly-logging-delete",
-            r"fastly\s+logging\s+\S+\s+delete\b",
+            r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+logging\s+\S+\s+delete\b",
             "fastly logging delete removes logging endpoints.",
             High,
             "Deleting a logging endpoint stops log delivery to that destination. You \
@@ -183,7 +183,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // Service version activation (can cause outages)
         destructive_pattern!(
             "fastly-version-activate",
-            r"fastly\s+service\s+version\s+activate\b",
+            r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+service\s+version\s+activate\b",
             "fastly service version activate can cause service disruption if misconfigured.",
             High,
             "Activating a service version immediately deploys that configuration to all \
@@ -197,7 +197,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // Compute package deletion
         destructive_pattern!(
             "fastly-compute-delete",
-            r"fastly\s+compute\s+delete\b",
+            r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+compute\s+delete\b",
             "fastly compute delete removes compute package.",
             Critical,
             "Deleting a Compute@Edge package removes your WASM application from the \
@@ -357,5 +357,26 @@ mod tests {
     fn blocks_compute_delete() {
         let pack = create_pack();
         assert_blocks_with_pattern(&pack, "fastly compute delete", "fastly-compute-delete");
+    }
+
+    #[test]
+    fn global_flags_do_not_bypass() {
+        let pack = create_pack();
+        // Fastly CLI accepts --token, --endpoint, --verbose, --api-timeout, etc.
+        // before the subcommand. Structured flag-aware pattern must match.
+        assert_blocks_with_pattern(
+            &pack,
+            "fastly --token abc service delete --service-id xyz",
+            "fastly-service-delete",
+        );
+        assert_blocks_with_pattern(
+            &pack,
+            "fastly --verbose --endpoint https://api.fastly.com vcl delete --name main",
+            "fastly-vcl-delete",
+        );
+        assert!(
+            pack.check("fastly --token abc service list").is_none(),
+            "safe list with token flag should remain safe"
+        );
     }
 }

@@ -81,13 +81,16 @@ fn create_safe_patterns() -> Vec<SafePattern> {
         // fall through both sets and are allowed by default, so we keep
         // the surface small.
         //
-        // The trailing `(?!.*;)` is a negative lookahead that rejects
-        // any statement separator after the WHERE clause. Athena's
-        // `start-query-execution` takes a single statement, so a `;` is
-        // either a compound-statement attempt or an embedded literal
-        // (pathological). Either way, we don't want the safe-first
-        // short-circuit to swallow a trailing destructive statement
-        // like `DELETE FROM t WHERE id=1; DROP TABLE t`.
+        // The trailing `(?!.*;\s*[A-Za-z])` is a negative lookahead that
+        // rejects a `;` followed by more SQL (a second statement). Two
+        // shapes block:
+        //   DELETE … WHERE id=1; DROP TABLE t       (compound statement)
+        //   DELETE … WHERE id=1;\n DELETE FROM u    (multi-line compound)
+        // A bare trailing `;` with no SQL after it (`DELETE … WHERE a=1;`)
+        // is still allowed — it's a common habit from SQL CLI tooling.
+        // SQL comments after `;` (`; -- …`, `; /* … */`) also pass, since
+        // `-` and `/` aren't ASCII letters; a comment after a scoped
+        // DELETE is benign.
         safe_pattern!(
             "athena-delete-with-where",
             // `aws\b.*?\bathena\b` instead of `aws\s+athena` so global
@@ -108,7 +111,7 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             // The character class still covers bare names (`t`),
             // schema-qualified names (`db.t`), double-quoted identifiers
             // (`"my-t"`), and backtick-quoted identifiers (`` `my-t` ``).
-            r#"(?i)aws\b.*?\bathena\s+start-query-execution\b.*?--query-string[=\s]+['"]?\s*DELETE\s+FROM\s+[^\s;]+\s+.*?\bWHERE\b(?!.*;)"#
+            r#"(?i)aws\b.*?\bathena\s+start-query-execution\b.*?--query-string[=\s]+['"]?\s*DELETE\s+FROM\s+[^\s;]+\s+.*?\bWHERE\b(?!.*;\s*[A-Za-z])"#
         ),
     ]
 }
@@ -420,7 +423,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // will match as safe first and never reach these checks.
         destructive_pattern!(
             "athena-query-drop-database",
-            r"(?i)aws\b.*?\bathena\s+start-query-execution\b.*\bDROP\s+(?:DATABASE|SCHEMA)\b",
+            r"(?is)aws\b.*?\bathena\s+start-query-execution\b.*\bDROP\s+(?:DATABASE|SCHEMA)\b",
             "Athena DROP DATABASE/SCHEMA removes the database from the Glue catalog.",
             Critical,
             "DROP DATABASE/SCHEMA removes a database from the Glue catalog:\n\n\
@@ -436,7 +439,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "athena-query-drop-table",
-            r"(?i)aws\b.*?\bathena\s+start-query-execution\b.*\bDROP\s+(?:TABLE|VIEW|EXTERNAL\s+TABLE)\b",
+            r"(?is)aws\b.*?\bathena\s+start-query-execution\b.*\bDROP\s+(?:TABLE|VIEW|EXTERNAL\s+TABLE)\b",
             "Athena DROP TABLE/VIEW removes the table definition from the Glue catalog.",
             High,
             "DROP TABLE/VIEW removes a table or view from the catalog:\n\n\
@@ -449,7 +452,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "athena-query-truncate",
-            r"(?i)aws\b.*?\bathena\s+start-query-execution\b.*\bTRUNCATE\s+TABLE\b",
+            r"(?is)aws\b.*?\bathena\s+start-query-execution\b.*\bTRUNCATE\s+TABLE\b",
             "Athena TRUNCATE TABLE deletes all rows from an Iceberg table.",
             Critical,
             "TRUNCATE TABLE in Athena (Iceberg tables):\n\n\
@@ -510,7 +513,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
             // `matches_safe` first, so this only fires on unscoped DELETE.)
             // `\S+` is deliberately broad so quoted identifiers like
             // `"my-table"` or `` `my-table` `` can't evade the block.
-            r"(?i)aws\b.*?\bathena\s+start-query-execution\b.*\bDELETE\s+FROM\s+\S+",
+            r"(?is)aws\b.*?\bathena\s+start-query-execution\b.*\bDELETE\s+FROM\s+\S+",
             "Athena DELETE without a WHERE clause removes all rows from the target table.",
             Critical,
             "DELETE FROM <table> without a WHERE clause:\n\n\
@@ -855,6 +858,41 @@ mod tests {
         assert_allows(
             &pack,
             "aws athena start-query-execution --query-string 'select * from t'",
+        );
+    }
+
+    #[test]
+    fn athena_delete_trailing_semicolon_without_second_statement_is_allowed() {
+        // Regression: `DELETE … WHERE a=1;` (bare trailing `;`, common
+        // habit from psql/sqlite CLI tooling) must NOT be blocked by
+        // the multi-statement lookahead. Only a `;` followed by another
+        // SQL verb should trip it.
+        let pack = create_pack();
+        // Trailing `;` with no SQL after.
+        assert_allows(
+            &pack,
+            "aws athena start-query-execution --query-string 'DELETE FROM t WHERE id = 1;'",
+        );
+        // Trailing `;` with line comment after.
+        assert_allows(
+            &pack,
+            "aws athena start-query-execution --query-string 'DELETE FROM t WHERE id = 1; -- cleanup done'",
+        );
+        // Trailing `;` with block comment after.
+        assert_allows(
+            &pack,
+            "aws athena start-query-execution --query-string 'DELETE FROM t WHERE id = 1; /* end */'",
+        );
+        // And the real bypass attempts still block:
+        assert_blocks(
+            &pack,
+            "aws athena start-query-execution --query-string 'DELETE FROM t WHERE id = 1; DROP TABLE t'",
+            "DROP TABLE",
+        );
+        assert_blocks(
+            &pack,
+            "aws athena start-query-execution --query-string 'DELETE FROM t WHERE id = 1;\nDROP TABLE t'",
+            "DROP TABLE",
         );
     }
 

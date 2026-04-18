@@ -54,9 +54,13 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // dd to regular files is generally safe
-        safe_pattern!("dd-file-out", r"dd\s+.*of=[^/\s]+\."),
-        // dd to /dev/null|zero|full is safe (discard output)
-        safe_pattern!("dd-discard", r"dd\s+.*of=/dev/(?:null|zero|full)(?:\s|$)"),
+        safe_pattern!("dd-file-out", r#"dd\s+.*of=['"]?[^/\s'"]+\."#),
+        // dd to /dev/null|zero|full is safe (discard output). Accept optional
+        // quotes so `dd of="/dev/null"` still short-circuits as safe.
+        safe_pattern!(
+            "dd-discard",
+            r#"dd\s+.*of=['"]?/dev/(?:null|zero|full)['"]?(?:\s|$)"#
+        ),
         // lsblk is safe (read-only)
         safe_pattern!("lsblk", r"\blsblk\b"),
         // fdisk -l (list) is safe
@@ -125,16 +129,17 @@ fn create_safe_patterns() -> Vec<SafePattern> {
 
 fn create_destructive_patterns() -> Vec<DestructivePattern> {
     vec![
-        // dd to block devices
+        // dd to block devices. Accept optional quotes around the device path
+        // (`dd of="/dev/sda"` unquotes to `of=/dev/sda` before exec).
         destructive_pattern!(
             "dd-device",
-            r"dd\s+.*of=/dev/",
+            r#"dd\s+.*of=['"]?/dev/"#,
             "dd to a block device will OVERWRITE all data on that device. Extremely dangerous!"
         ),
         // dd with if=/dev/zero or if=/dev/urandom to devices
         destructive_pattern!(
             "dd-wipe",
-            r"dd\s+.*if=/dev/(?:zero|urandom|random).*of=/dev/",
+            r#"dd\s+.*if=['"]?/dev/(?:zero|urandom|random).*of=['"]?/dev/"#,
             "dd from /dev/zero or /dev/urandom to a device will WIPE all data!"
         ),
         // fdisk (partition editing).
@@ -384,6 +389,31 @@ mod tests {
         let pack = create_pack();
         assert!(!pack.might_match("echo hello"));
         assert!(pack.check("echo hello").is_none());
+    }
+
+    #[test]
+    fn dd_quote_bypass_is_closed() {
+        // `dd of="/dev/sda"` unquotes to `dd of=/dev/sda` at exec time.
+        // The destructive pattern must match both spellings. The earlier-listed
+        // `dd-device` rule catches every `dd of=/dev/...` variant (including
+        // the more-specific wipe cases), which is the correct, fail-safe
+        // behavior.
+        let pack = create_pack();
+        let matched = pack
+            .check("dd if=/dev/zero of=\"/dev/sda\" bs=1M")
+            .expect("dd of=\"...\" must still block");
+        assert_eq!(matched.name, Some("dd-device"));
+
+        let matched = pack
+            .check("dd of='/dev/sdb' if=something.img")
+            .expect("dd of='...' must still block");
+        assert_eq!(matched.name, Some("dd-device"));
+
+        // /dev/null stays safe under quotes.
+        assert!(
+            pack.matches_safe("dd if=myfile of=\"/dev/null\""),
+            "safe /dev/null discard must accept quoted path"
+        );
     }
 
     #[test]

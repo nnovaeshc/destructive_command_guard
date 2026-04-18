@@ -165,7 +165,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // mount with potentially dangerous options
         destructive_pattern!(
             "mount-bind-root",
-            r"mount\s+.*--bind\s+.*\s+/(?:$|[^a-z])",
+            r#"mount\s+.*--bind\s+.*\s+['"]?/(?:$|[^a-z])"#,
             "mount --bind to root directory can have system-wide effects."
         ),
         // umount -f (force)
@@ -307,7 +307,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // nbd-client connect (can overwrite existing data)
         destructive_pattern!(
             "nbd-client-connect",
-            r"nbd-client\s+\S+\s+\d+\s+/dev/nbd",
+            r#"nbd-client\s+\S+\s+\d+\s+['"]?/dev/nbd"#,
             "nbd-client connecting a device can expose or overwrite data. Verify server and device."
         ),
         // --- LVM destructive patterns ---

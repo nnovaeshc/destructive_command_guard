@@ -22,6 +22,13 @@ pub fn create_pack() -> Pack {
             "dropDatabase",
             "dropCollection",
             "deleteMany",
+            // Include method-call forms so `db.users.drop()` triggers the pack
+            // even when run as a shell-quoted one-liner without `mongo`/`mongosh`.
+            ".drop(",
+            ".remove(",
+            ".deleteMany(",
+            "mongorestore",
+            "mongodump",
         ],
         safe_patterns: create_safe_patterns(),
         destructive_patterns: create_destructive_patterns(),
@@ -32,17 +39,34 @@ pub fn create_pack() -> Pack {
 }
 
 fn create_safe_patterns() -> Vec<SafePattern> {
+    // Start-anchored negative lookaheads prevent a compound command like
+    //   mongosh --eval 'db.users.drop(); db.posts.find({})'
+    // from being whitelisted by the safe `.find(` match while the destructive
+    // `.drop()` goes unchecked. Each safe pattern refuses to match when any
+    // destructive Mongo method is also present in the command string.
     vec![
         // find operations are safe
-        safe_pattern!("mongo-find", r"\.find\s*\("),
+        safe_pattern!(
+            "mongo-find",
+            r"^(?!.*(?:dropDatabase|dropCollection|\.drop\s*\(|\.(?:remove|deleteMany)\s*\(\s*\{\s*\}\s*\)|mongorestore\s+.*--drop)).*\.find\s*\("
+        ),
         // count operations are safe
-        safe_pattern!("mongo-count", r"\.count(?:Documents)?\s*\("),
+        safe_pattern!(
+            "mongo-count",
+            r"^(?!.*(?:dropDatabase|dropCollection|\.drop\s*\(|\.(?:remove|deleteMany)\s*\(\s*\{\s*\}\s*\)|mongorestore\s+.*--drop)).*\.count(?:Documents)?\s*\("
+        ),
         // aggregate operations are safe (read-only)
-        safe_pattern!("mongo-aggregate", r"\.aggregate\s*\("),
+        safe_pattern!(
+            "mongo-aggregate",
+            r"^(?!.*(?:dropDatabase|dropCollection|\.drop\s*\(|\.(?:remove|deleteMany)\s*\(\s*\{\s*\}\s*\)|mongorestore\s+.*--drop)).*\.aggregate\s*\("
+        ),
         // mongodump without --drop is safe (backup only)
         safe_pattern!("mongodump-no-drop", r"mongodump\s+(?!.*--drop)"),
         // explain is safe
-        safe_pattern!("mongo-explain", r"\.explain\s*\("),
+        safe_pattern!(
+            "mongo-explain",
+            r"^(?!.*(?:dropDatabase|dropCollection|\.drop\s*\(|\.(?:remove|deleteMany)\s*\(\s*\{\s*\}\s*\)|mongorestore\s+.*--drop)).*\.explain\s*\("
+        ),
     ]
 }
 
@@ -132,4 +156,58 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
              mongodump --db=mydb --collection=mycollection"
         ),
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::packs::test_helpers::*;
+
+    #[test]
+    fn test_pack_creation() {
+        let pack = create_pack();
+        assert_eq!(pack.id, "database.mongodb");
+        assert_patterns_compile(&pack);
+        assert_all_patterns_have_reasons(&pack);
+        assert_unique_pattern_names(&pack);
+    }
+
+    #[test]
+    fn standalone_reads_remain_safe() {
+        let pack = create_pack();
+        assert!(pack.matches_safe("db.users.find({status: 'active'})"));
+        assert!(pack.matches_safe("db.users.countDocuments({})"));
+        assert!(pack.matches_safe("db.users.aggregate([{$match: {x: 1}}])"));
+        assert!(pack.matches_safe("db.users.find({}).explain()"));
+        assert!(pack.matches_safe("mongodump --out=/backup"));
+    }
+
+    #[test]
+    fn compound_read_plus_drop_does_not_bypass() {
+        // These compound commands used to short-circuit on the safe `.find(`
+        // match and skip the destructive `.drop()` check.
+        let pack = create_pack();
+        let m = pack
+            .check("db.users.drop(); db.posts.find({})")
+            .expect("drop() with find() must still block");
+        // `drop-collection` wins over `collection-drop` because it appears
+        // first in the destructive_patterns list; both are equally correct
+        // for this input.
+        assert_eq!(m.name, Some("drop-collection"));
+
+        let m = pack
+            .check("db.dropDatabase(); db.users.find({})")
+            .expect("dropDatabase() with find() must still block");
+        assert_eq!(m.name, Some("drop-database"));
+
+        let m = pack
+            .check("db.users.deleteMany({}); db.posts.aggregate([])")
+            .expect("deleteMany({}) with aggregate() must still block");
+        assert_eq!(m.name, Some("delete-all"));
+
+        let m = pack
+            .check("mongorestore --drop /backup; db.users.find({})")
+            .expect("mongorestore --drop with find() must still block");
+        assert_eq!(m.name, Some("mongorestore-drop"));
+    }
 }

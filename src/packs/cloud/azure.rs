@@ -17,7 +17,24 @@ pub fn create_pack() -> Pack {
         name: "Azure CLI",
         description: "Protects against destructive Azure CLI operations like vm delete, \
                       storage account delete, and resource group delete",
-        keywords: &["az", "delete", "vm", "storage", "acr", "registry"],
+        keywords: &[
+            "az",
+            "delete",
+            "vm",
+            "storage",
+            "acr",
+            "registry",
+            // Extra service keywords so newly-added rules reliably
+            // select this pack even when `az` isn't the first keyword
+            // in the command's token list.
+            "keyvault",
+            "role",
+            "ad",
+            "dns",
+            "cosmosdb",
+            "monitor",
+            "purge",
+        ],
         safe_patterns: create_safe_patterns(),
         destructive_patterns: create_destructive_patterns(),
         keyword_matcher: None,
@@ -29,20 +46,26 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // show/list operations are safe (read-only)
-        safe_pattern!("az-show", r"az\s+\S+\s+show"),
-        safe_pattern!("az-list", r"az\s+\S+\s+list"),
-        // az account is safe
-        safe_pattern!("az-account", r"az\s+account"),
+        safe_pattern!("az-show", r"az\b.*?\s+\S+\s+show"),
+        safe_pattern!("az-list", r"az\b.*?\s+\S+\s+list"),
+        // az account is safe.  Require `account` to be preceded by
+        // whitespace so the pattern doesn't false-match `--account-name`
+        // arguments (a common flag on many destructive subcommands,
+        // e.g. `az cosmosdb sql container delete --account-name …`) —
+        // a safe-first match on a flag value would BYPASS the
+        // destructive check. Same care is taken on every similar
+        // `az`/`gcloud` safe pattern below.
+        safe_pattern!("az-account", r"az\b.*?\s+account\b"),
         // az configure is safe
-        safe_pattern!("az-configure", r"az\s+configure"),
+        safe_pattern!("az-configure", r"az\b.*?\s+configure\b"),
         // az login is safe
-        safe_pattern!("az-login", r"az\s+login"),
+        safe_pattern!("az-login", r"az\b.*?\s+login\b"),
         // az version is safe
-        safe_pattern!("az-version", r"az\s+version"),
+        safe_pattern!("az-version", r"az\b.*?\s+version\b"),
         // az --help is safe
-        safe_pattern!("az-help", r"az\s+.*--help"),
+        safe_pattern!("az-help", r"az\b.*--help"),
         // what-if is safe (preview)
-        safe_pattern!("az-what-if", r"az\s+.*--what-if"),
+        safe_pattern!("az-what-if", r"az\b.*--what-if"),
     ]
 }
 
@@ -52,7 +75,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // vm delete
         destructive_pattern!(
             "vm-delete",
-            r"az\s+vm\s+delete",
+            r"az\b.*?\bvm\s+delete",
             "az vm delete permanently destroys virtual machines.",
             Critical,
             "vm delete permanently destroys Azure VMs:\n\n\
@@ -65,7 +88,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // storage account delete
         destructive_pattern!(
             "storage-delete",
-            r"az\s+storage\s+account\s+delete",
+            r"az\b.*?\bstorage\s+account\s+delete",
             "az storage account delete permanently destroys the storage account and all data.",
             Critical,
             "storage account delete destroys entire storage account:\n\n\
@@ -77,7 +100,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // storage blob/container delete
         destructive_pattern!(
             "blob-delete",
-            r"az\s+storage\s+(?:blob|container)\s+delete",
+            r"az\b.*?\bstorage\s+(?:blob|container)\s+delete",
             "az storage blob/container delete permanently removes data.",
             High,
             "storage blob/container delete removes data:\n\n\
@@ -89,7 +112,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // sql server delete
         destructive_pattern!(
             "sql-delete",
-            r"az\s+sql\s+(?:server|db)\s+delete",
+            r"az\b.*?\bsql\s+(?:server|db)\s+delete",
             "az sql server/db delete permanently destroys the database.",
             Critical,
             "sql server/db delete destroys databases:\n\n\
@@ -101,7 +124,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // group delete (resource group)
         destructive_pattern!(
             "group-delete",
-            r"az\s+group\s+delete",
+            r"az\b.*?\bgroup\s+delete",
             "az group delete removes the entire resource group and ALL resources within it!",
             Critical,
             "group delete removes ENTIRE resource group:\n\n\
@@ -114,7 +137,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // aks delete (Kubernetes)
         destructive_pattern!(
             "aks-delete",
-            r"az\s+aks\s+delete",
+            r"az\b.*?\baks\s+delete",
             "az aks delete removes the entire AKS cluster.",
             Critical,
             "aks delete removes the entire Kubernetes cluster:\n\n\
@@ -127,7 +150,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // webapp delete
         destructive_pattern!(
             "webapp-delete",
-            r"az\s+webapp\s+delete",
+            r"az\b.*?\bwebapp\s+delete",
             "az webapp delete removes the App Service.",
             High,
             "webapp delete removes App Service:\n\n\
@@ -140,7 +163,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // functionapp delete
         destructive_pattern!(
             "functionapp-delete",
-            r"az\s+functionapp\s+delete",
+            r"az\b.*?\bfunctionapp\s+delete",
             "az functionapp delete removes the Azure Function App.",
             High,
             "functionapp delete removes Azure Functions:\n\n\
@@ -153,7 +176,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // cosmosdb delete
         destructive_pattern!(
             "cosmosdb-delete",
-            r"az\s+cosmosdb\s+(?:delete|database\s+delete|collection\s+delete)",
+            r"az\b.*?\bcosmosdb\s+(?:delete|database\s+delete|collection\s+delete)",
             "az cosmosdb delete permanently destroys the Cosmos DB resource.",
             Critical,
             "cosmosdb delete destroys Cosmos DB resources:\n\n\
@@ -165,7 +188,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // keyvault delete
         destructive_pattern!(
             "keyvault-delete",
-            r"az\s+keyvault\s+delete",
+            r"az\b.*?\bkeyvault\s+delete",
             "az keyvault delete removes the Key Vault. Secrets may be unrecoverable.",
             Critical,
             "keyvault delete removes Key Vault:\n\n\
@@ -178,7 +201,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // network vnet delete
         destructive_pattern!(
             "vnet-delete",
-            r"az\s+network\s+vnet\s+delete",
+            r"az\b.*?\bnetwork\s+vnet\s+delete",
             "az network vnet delete removes the virtual network.",
             High,
             "network vnet delete removes virtual network:\n\n\
@@ -191,7 +214,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // acr registry delete
         destructive_pattern!(
             "acr-delete",
-            r"az\s+acr\s+delete",
+            r"az\b.*?\bacr\s+delete",
             "az acr delete removes the container registry and all images.",
             Critical,
             "acr delete removes entire container registry:\n\n\
@@ -204,7 +227,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // acr repository delete
         destructive_pattern!(
             "acr-repository-delete",
-            r"az\s+acr\s+repository\s+delete",
+            r"az\b.*?\bacr\s+repository\s+delete",
             "az acr repository delete permanently deletes the repository and its images.",
             High,
             "acr repository delete removes repository:\n\n\
@@ -216,7 +239,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // acr repository untag
         destructive_pattern!(
             "acr-repository-untag",
-            r"az\s+acr\s+repository\s+untag",
+            r"az\b.*?\bacr\s+repository\s+untag",
             "az acr repository untag removes tags from images.",
             Medium,
             "acr repository untag removes image tags:\n\n\
@@ -225,6 +248,107 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
              - Untagged images may be garbage collected\n\n\
              Lower risk: manifests can be re-tagged if digest known."
         ),
+
+        // ---- Security- and data-critical Azure services --------------------
+        destructive_pattern!(
+            "keyvault-item-delete-or-purge",
+            // Matches `az keyvault <sub> delete/purge` where <sub> is
+            // `key`, `secret`, `certificate`, `storage` (the major
+            // Key Vault sub-resources). Purge is particularly dangerous:
+            // it bypasses the soft-delete recovery window.
+            r"az\b.*?\bkeyvault\s+(?:key|secret|certificate|storage)\s+(?:delete|purge)",
+            "Key Vault item delete/purge (az keyvault <key|secret|certificate|storage> …) — purge bypasses soft-delete and is irreversible.",
+            Critical,
+            "keyvault delete/purge on a Key Vault sub-resource:\n\n\
+             - delete: soft-delete (recoverable within retention window)\n\
+             - purge: PERMANENT; cannot be recovered; bypasses retention\n\
+             - Purging a KEK (Key-Encryption-Key) makes all data encrypted under it unrecoverable\n\
+             - Applications/services bound to the item fail immediately\n\n\
+             Restore soft-deleted items within retention:\n  \
+             az keyvault <sub> recover --name NAME --vault-name VAULT\n\n\
+             Check purge protection:\n  \
+             az keyvault show --name VAULT --query properties.enablePurgeProtection"
+        ),
+        destructive_pattern!(
+            "role-assignment-delete",
+            r"az\b.*?\brole\s+assignment\s+delete",
+            "az role assignment delete removes an RBAC binding — users/SPs lose permissions.",
+            High,
+            "role assignment delete revokes an RBAC assignment:\n\n\
+             - The target user / service principal / group loses the role's permissions\n\
+             - Can cascade — CI/CD pipelines, workloads, operators lose access\n\
+             - Re-adding via `az role assignment create` is possible if IDs are known\n\n\
+             List bindings first:\n  \
+             az role assignment list --assignee PRINCIPAL-ID"
+        ),
+        destructive_pattern!(
+            "ad-sp-delete",
+            r"az\b.*?\bad\s+sp\s+delete",
+            "az ad sp delete removes a service principal — workloads using it lose auth.",
+            Critical,
+            "ad sp delete removes an Azure AD service principal:\n\n\
+             - All workloads authenticating via this SP lose access\n\
+             - SP credentials (client secrets, certs) are invalidated\n\
+             - Can soft-delete and restore within 30 days via Graph API\n\
+             - Associated app registration is NOT deleted (requires `az ad app delete`)\n\n\
+             Preview usages:\n  \
+             az role assignment list --assignee SP-APP-ID"
+        ),
+        destructive_pattern!(
+            "ad-app-delete",
+            r"az\b.*?\bad\s+app\s+delete",
+            "az ad app delete removes an Azure AD app registration — every service principal for it stops working.",
+            Critical,
+            "ad app delete removes the Azure AD application registration:\n\n\
+             - All service principals derived from this app break\n\
+             - OAuth grants to this app are invalidated\n\
+             - Associated federated credentials are deleted\n\
+             - Can restore within 30 days via Graph API soft-delete\n\n\
+             Consider disabling instead:\n  \
+             az ad app update --id APP-ID --set disabledByMicrosoftStatus=None"
+        ),
+        destructive_pattern!(
+            "network-dns-zone-delete",
+            r"az\b.*?\bnetwork\s+dns\s+zone\s+delete",
+            "az network dns zone delete removes an Azure DNS zone — domains stop resolving.",
+            Critical,
+            "network dns zone delete removes an Azure DNS zone:\n\n\
+             - All record sets in the zone are deleted\n\
+             - Domains delegated to this zone's nameservers stop resolving\n\
+             - Production traffic goes dark\n\
+             - No undelete\n\n\
+             Export records first:\n  \
+             az network dns record-set list -g RG -z ZONE -o json > zone-backup.json"
+        ),
+        destructive_pattern!(
+            "monitor-log-profiles-delete",
+            r"az\b.*?\bmonitor\s+log-profiles\s+delete",
+            "az monitor log-profiles delete removes a subscription activity-log export — compliance/forensics.",
+            High,
+            "monitor log-profiles delete stops exporting the Azure activity log:\n\n\
+             - Historical entries at the destination (Storage/Event Hub) are preserved\n\
+             - Future activity events stop flowing to the configured export\n\
+             - Compliance audit (SOC2, ISO 27001, FedRAMP) may require this profile\n\n\
+             Each subscription only supports one log profile at a time."
+        ),
+        destructive_pattern!(
+            "cosmosdb-sql-container-delete",
+            // Existing `cosmosdb-delete` matches `cosmosdb delete`,
+            // `cosmosdb database delete`, and `cosmosdb collection delete`
+            // — but Cosmos DB's newer SQL API uses
+            // `cosmosdb sql database|container delete` (and there are
+            // mongodb/cassandra/gremlin/table variants too).
+            r"az\b.*?\bcosmosdb\s+(?:sql|mongodb|cassandra|gremlin|table)\s+(?:database|container|keyspace|graph)\s+delete",
+            "az cosmosdb <api> <db|container|keyspace> delete permanently destroys Cosmos DB data.",
+            Critical,
+            "cosmosdb <api> delete destroys Cosmos DB SQL/Mongo/Cassandra/Gremlin/Table API resources:\n\n\
+             - Container/keyspace deletion removes ALL documents/rows inside\n\
+             - Point-in-time restore is only available if continuous backup is enabled\n\
+             - Periodic backups can restore within retention, with a new account name\n\n\
+             Enable continuous backup for safer recovery:\n  \
+             az cosmosdb update --name ACCOUNT --resource-group RG \\\n    \
+             --backup-policy-type Continuous"
+        ),
     ]
 }
 
@@ -232,6 +356,135 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
 mod tests {
     use super::*;
     use crate::packs::test_helpers::*;
+
+    #[test]
+    fn azure_safe_pattern_does_not_bypass_via_flag_value() {
+        // Regression: `az-account` safe pattern must NOT match
+        // `--account-name`, `--account-id`, etc. — those are flags on
+        // destructive subcommands, and a false-safe match there would
+        // silently allow destructive commands through. Same concern
+        // for `configure` / `login` / `version` on any destructive
+        // command that happens to carry those words as flag values.
+        let pack = create_pack();
+        // Cosmos DB delete with --account-name must still block
+        assert_blocks(
+            &pack,
+            "az cosmosdb sql container delete --account-name prod --database-name orders --name ledger -g prod",
+            "Cosmos DB",
+        );
+        // VM delete with --account-name (hypothetical but similar shape)
+        assert_blocks(
+            &pack,
+            "az vm delete --name prod-vm -g prod --no-wait",
+            "vm delete",
+        );
+        // Genuine `az account` commands still allowed
+        assert_allows(&pack, "az account list");
+        assert_allows(&pack, "az account show");
+        assert_allows(&pack, "az --subscription prod account list");
+    }
+
+    #[test]
+    fn azure_security_and_data_critical_services_blocked() {
+        // New coverage for previously-uncovered Azure destructive
+        // operations on Key Vault items, RBAC, AAD, DNS, and activity-log
+        // profiles.
+        let pack = create_pack();
+        // Key Vault sub-resource delete (soft-delete, recoverable)
+        assert_blocks(
+            &pack,
+            "az keyvault key delete --name prod-kek --vault-name prod-vault",
+            "Key Vault",
+        );
+        assert_blocks(
+            &pack,
+            "az keyvault secret delete --name prod-db-pw --vault-name prod-vault",
+            "Key Vault",
+        );
+        // Key Vault sub-resource PURGE (bypasses soft-delete, irreversible)
+        assert_blocks(
+            &pack,
+            "az keyvault key purge --name prod-kek --vault-name prod-vault",
+            "Key Vault",
+        );
+        assert_blocks(
+            &pack,
+            "az keyvault certificate purge --name prod-tls --vault-name prod-vault",
+            "Key Vault",
+        );
+        // RBAC role assignment
+        assert_blocks(
+            &pack,
+            "az role assignment delete --assignee user@corp.com --role Contributor --scope /subscriptions/X",
+            "RBAC",
+        );
+        // Azure AD service principal
+        assert_blocks(
+            &pack,
+            "az ad sp delete --id 11111111-2222-3333-4444-555555555555",
+            "service principal",
+        );
+        // Azure AD app registration
+        assert_blocks(
+            &pack,
+            "az ad app delete --id 11111111-2222-3333-4444-555555555555",
+            "app registration",
+        );
+        // DNS zone
+        assert_blocks(
+            &pack,
+            "az network dns zone delete --name prod.example.com --resource-group prod",
+            "DNS zone",
+        );
+        // Activity-log profile
+        assert_blocks(
+            &pack,
+            "az monitor log-profiles delete --name prod-audit",
+            "activity-log",
+        );
+        // Cosmos DB SQL-API container
+        assert_blocks(
+            &pack,
+            "az cosmosdb sql container delete --account-name prod --database-name orders --name ledger -g prod",
+            "Cosmos DB",
+        );
+        // All still block with global flags
+        assert_blocks(
+            &pack,
+            "az --subscription prod keyvault key purge --name k --vault-name v",
+            "Key Vault",
+        );
+    }
+
+    #[test]
+    fn azure_patterns_match_with_global_flags() {
+        // Same class bug as aws.rs / gcp.rs: Azure CLI global flags
+        // (`--subscription`, `--debug`, `--verbose`, `--output`,
+        // `--only-show-errors`) between `az` and the service break
+        // every `az\s+<svc>` pattern. Multi-subscription orgs hit this
+        // every day.
+        let pack = create_pack();
+        assert_blocks(
+            &pack,
+            "az --subscription prod vm delete --name prod-vm --resource-group prod",
+            "vm delete",
+        );
+        assert_blocks(
+            &pack,
+            "az --debug --subscription prod group delete --name prod-rg --yes",
+            "resource group",
+        );
+        assert_blocks(
+            &pack,
+            "az --output json --subscription prod aks delete --name prod-aks --resource-group prod",
+            "AKS cluster",
+        );
+        assert_blocks(
+            &pack,
+            "az --only-show-errors --subscription prod keyvault delete --name prod-vault",
+            "Key Vault",
+        );
+    }
 
     #[test]
     fn acr_patterns_block() {

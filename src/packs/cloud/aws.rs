@@ -894,6 +894,41 @@ mod tests {
     }
 
     #[test]
+    fn athena_file_protocol_edge_cases() {
+        // Edge cases the simple matcher must still handle:
+        let pack = create_pack();
+        // `=` separator instead of space.
+        assert_blocks(
+            &pack,
+            "aws athena start-query-execution --query-string=file:///tmp/q.sql",
+            "file",
+        );
+        // Quoted file path.
+        assert_blocks(
+            &pack,
+            "aws athena start-query-execution --query-string \"file:///tmp/q.sql\"",
+            "file",
+        );
+        assert_blocks(
+            &pack,
+            "aws athena start-query-execution --query-string 'file:///tmp/q.sql'",
+            "file",
+        );
+        // Case-insensitive on the protocol.
+        assert_blocks(
+            &pack,
+            "aws athena start-query-execution --query-string FILE:///tmp/q.sql",
+            "file",
+        );
+        // `--cli-input-json=file://…` with `=`.
+        assert_blocks(
+            &pack,
+            "aws athena start-query-execution --cli-input-json=file:///tmp/input.json",
+            "cli-input",
+        );
+    }
+
+    #[test]
     fn athena_query_string_via_file_protocol_is_flagged() {
         // Regression: AWS CLI's `file://` and `fileb://` protocols load
         // the parameter value from a file, and `--cli-input-json` /

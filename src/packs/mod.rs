@@ -522,8 +522,30 @@ impl Pack {
 
     /// Check a command against this pack.
     /// Returns Some(DestructiveMatch) if blocked, None if allowed.
+    ///
+    /// Compound commands (joined by `;`, `&&`, `||`, `\n`) are split into
+    /// segments and each segment is evaluated independently. This prevents
+    /// a safe pattern matching one segment (e.g. `docker ps`) from
+    /// shielding a destructive pattern in another (`docker system prune`).
+    /// Pipelines (`|`) are intentionally kept whole because some pack
+    /// patterns span them.
     #[must_use]
     pub fn check(&self, cmd: &str) -> Option<DestructiveMatch> {
+        let segments = crate::packs::split_command_segments(cmd);
+        if segments.len() > 1 {
+            for seg in &segments {
+                if let Some(m) = self.check_single(seg) {
+                    return Some(m);
+                }
+            }
+            // Also check the whole command so patterns that legitimately
+            // span segments still match.
+        }
+
+        self.check_single(cmd)
+    }
+
+    fn check_single(&self, cmd: &str) -> Option<DestructiveMatch> {
         // Quick reject if no keywords match
         if !self.might_match(cmd) {
             return None;

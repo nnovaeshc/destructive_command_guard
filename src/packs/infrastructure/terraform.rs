@@ -27,28 +27,42 @@ pub fn create_pack() -> Pack {
 }
 
 fn create_safe_patterns() -> Vec<SafePattern> {
+    // `(?=\s|$)` on each subcommand stops a workspace/module name that
+    // contains the subcommand keyword as a substring from making a
+    // destructive command short-circuit as safe. Without this anchor,
+    // `terraform destroy plan-stack` would match `terraform-plan` via
+    // `plan` in `plan-stack` and bypass the destroy rule.
     vec![
         // plan is safe (read-only)
-        safe_pattern!("terraform-plan", r"terraform\b.*?\s+plan\b(?!\s+.*-destroy)"),
+        safe_pattern!(
+            "terraform-plan",
+            r"terraform\b.*?\s+plan(?=\s|$)(?!\s+.*-destroy)"
+        ),
         // init is safe
-        safe_pattern!("terraform-init", r"terraform\b.*?\s+init\b"),
+        safe_pattern!("terraform-init", r"terraform\b.*?\s+init(?=\s|$)"),
         // validate is safe
-        safe_pattern!("terraform-validate", r"terraform\b.*?\s+validate\b"),
+        safe_pattern!("terraform-validate", r"terraform\b.*?\s+validate(?=\s|$)"),
         // fmt is safe
-        safe_pattern!("terraform-fmt", r"terraform\b.*?\s+fmt\b"),
+        safe_pattern!("terraform-fmt", r"terraform\b.*?\s+fmt(?=\s|$)"),
         // show is safe
-        safe_pattern!("terraform-show", r"terraform\b.*?\s+show\b"),
+        safe_pattern!("terraform-show", r"terraform\b.*?\s+show(?=\s|$)"),
         // output is safe
-        safe_pattern!("terraform-output", r"terraform\b.*?\s+output\b"),
+        safe_pattern!("terraform-output", r"terraform\b.*?\s+output(?=\s|$)"),
         // state list/show are safe (read-only)
-        safe_pattern!("terraform-state-list", r"terraform\b.*?\bstate\s+list"),
-        safe_pattern!("terraform-state-show", r"terraform\b.*?\bstate\s+show"),
+        safe_pattern!(
+            "terraform-state-list",
+            r"terraform\b.*?\bstate\s+list(?=\s|$)"
+        ),
+        safe_pattern!(
+            "terraform-state-show",
+            r"terraform\b.*?\bstate\s+show(?=\s|$)"
+        ),
         // graph is safe
-        safe_pattern!("terraform-graph", r"terraform\b.*?\s+graph\b"),
+        safe_pattern!("terraform-graph", r"terraform\b.*?\s+graph(?=\s|$)"),
         // version is safe
-        safe_pattern!("terraform-version", r"terraform\b.*?\s+version\b"),
+        safe_pattern!("terraform-version", r"terraform\b.*?\s+version(?=\s|$)"),
         // providers is safe
-        safe_pattern!("terraform-providers", r"terraform\b.*?\s+providers\b"),
+        safe_pattern!("terraform-providers", r"terraform\b.*?\s+providers(?=\s|$)"),
     ]
 }
 

@@ -29,26 +29,26 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // Service list/describe
-        safe_pattern!("fastly-service-list", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+service\s+list\b"),
-        safe_pattern!("fastly-service-describe", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+service\s+describe\b"),
-        safe_pattern!("fastly-service-search", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+service\s+search\b"),
+        safe_pattern!("fastly-service-list", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+service\s+list(?=\s|$)"),
+        safe_pattern!("fastly-service-describe", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+service\s+describe(?=\s|$)"),
+        safe_pattern!("fastly-service-search", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+service\s+search(?=\s|$)"),
         // Domain list
-        safe_pattern!("fastly-domain-list", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+domain\s+list\b"),
-        safe_pattern!("fastly-domain-describe", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+domain\s+describe\b"),
+        safe_pattern!("fastly-domain-list", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+domain\s+list(?=\s|$)"),
+        safe_pattern!("fastly-domain-describe", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+domain\s+describe(?=\s|$)"),
         // Backend list
-        safe_pattern!("fastly-backend-list", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+backend\s+list\b"),
-        safe_pattern!("fastly-backend-describe", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+backend\s+describe\b"),
+        safe_pattern!("fastly-backend-list", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+backend\s+list(?=\s|$)"),
+        safe_pattern!("fastly-backend-describe", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+backend\s+describe(?=\s|$)"),
         // VCL list/show
-        safe_pattern!("fastly-vcl-list", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+vcl\s+list\b"),
-        safe_pattern!("fastly-vcl-describe", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+vcl\s+describe\b"),
+        safe_pattern!("fastly-vcl-list", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+vcl\s+list(?=\s|$)"),
+        safe_pattern!("fastly-vcl-describe", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+vcl\s+describe(?=\s|$)"),
         // Version list
-        safe_pattern!("fastly-version-list", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+version\s+list\b"),
+        safe_pattern!("fastly-version-list", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+version\s+list(?=\s|$)"),
         // Account/profile
-        safe_pattern!("fastly-whoami", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+whoami\b"),
-        safe_pattern!("fastly-profile", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+profile\b"),
+        safe_pattern!("fastly-whoami", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+whoami(?=\s|$)"),
+        safe_pattern!("fastly-profile", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+profile(?=\s|$)"),
         // Version/help
-        safe_pattern!("fastly-version", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:-v|--version|version)\b"),
-        safe_pattern!("fastly-help", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:-h|--help|help)\b"),
+        safe_pattern!("fastly-version", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:-v|--version|version)(?=\s|$)"),
+        safe_pattern!("fastly-help", r"fastly(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:-h|--help|help)(?=\s|$)"),
     ]
 }
 

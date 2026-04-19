@@ -30,29 +30,29 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // Account/auth info
-        safe_pattern!("wrangler-whoami", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+whoami\b"),
+        safe_pattern!("wrangler-whoami", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+whoami(?=\s|$)"),
         // KV read operations
-        safe_pattern!("wrangler-kv-get", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+kv:key\s+get\b"),
-        safe_pattern!("wrangler-kv-list", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+kv:key\s+list\b"),
+        safe_pattern!("wrangler-kv-get", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+kv:key\s+get(?=\s|$)"),
+        safe_pattern!("wrangler-kv-list", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+kv:key\s+list(?=\s|$)"),
         safe_pattern!(
             "wrangler-kv-namespace-list",
-            r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+kv:namespace\s+list\b"
+            r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+kv:namespace\s+list(?=\s|$)"
         ),
         // R2 read operations
-        safe_pattern!("wrangler-r2-object-get", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+r2\s+object\s+get\b"),
+        safe_pattern!("wrangler-r2-object-get", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+r2\s+object\s+get(?=\s|$)"),
         safe_pattern!(
             "wrangler-r2-bucket-list",
-            r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+r2\s+bucket\s+list\b"
+            r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+r2\s+bucket\s+list(?=\s|$)"
         ),
         // D1 read operations
-        safe_pattern!("wrangler-d1-list", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+d1\s+list\b"),
-        safe_pattern!("wrangler-d1-info", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+d1\s+info\b"),
+        safe_pattern!("wrangler-d1-list", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+d1\s+list(?=\s|$)"),
+        safe_pattern!("wrangler-d1-info", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+d1\s+info(?=\s|$)"),
         // Development/debugging
-        safe_pattern!("wrangler-dev", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+dev\b"),
-        safe_pattern!("wrangler-tail", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+tail\b"),
+        safe_pattern!("wrangler-dev", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+dev(?=\s|$)"),
+        safe_pattern!("wrangler-tail", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+tail(?=\s|$)"),
         // Version/help
-        safe_pattern!("wrangler-version", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:-v|--version|version)\b"),
-        safe_pattern!("wrangler-help", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:-h|--help|help)\b"),
+        safe_pattern!("wrangler-version", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:-v|--version|version)(?=\s|$)"),
+        safe_pattern!("wrangler-help", r"wrangler(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:-h|--help|help)(?=\s|$)"),
     ]
 }
 

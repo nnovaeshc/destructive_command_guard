@@ -30,8 +30,8 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // SES v1 read operations
-        safe_pattern!("ses-list-identities", r"\baws\b.*?\bses\s+list-identities\b"),
-        safe_pattern!("ses-list-templates", r"\baws\b.*?\bses\s+list-templates\b"),
+        safe_pattern!("ses-list-identities", r"\baws\b.*?\bses\s+list-identities(?=\s|$)"),
+        safe_pattern!("ses-list-templates", r"\baws\b.*?\bses\s+list-templates(?=\s|$)"),
         safe_pattern!(
             "ses-list-configuration-sets",
             r"\baws\b.*?\bses\s+list-configuration-sets\b"
@@ -56,7 +56,7 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             "ses-get-identity-notification-attributes",
             r"\baws\b.*?\bses\s+get-identity-notification-attributes\b"
         ),
-        safe_pattern!("ses-get-template", r"\baws\b.*?\bses\s+get-template\b"),
+        safe_pattern!("ses-get-template", r"\baws\b.*?\bses\s+get-template(?=\s|$)"),
         safe_pattern!(
             "ses-describe-configuration-set",
             r"\baws\b.*?\bses\s+describe-configuration-set\b"
@@ -69,7 +69,7 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             "ses-describe-receipt-rule-set",
             r"\baws\b.*?\bses\s+describe-receipt-rule-set\b"
         ),
-        safe_pattern!("ses-get-send-quota", r"\baws\b.*?\bses\s+get-send-quota\b"),
+        safe_pattern!("ses-get-send-quota", r"\baws\b.*?\bses\s+get-send-quota(?=\s|$)"),
         safe_pattern!(
             "ses-get-send-statistics",
             r"\baws\b.*?\bses\s+get-send-statistics\b"
@@ -115,7 +115,7 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             "sesv2-get-dedicated-ip-pool",
             r"\baws\b.*?\bsesv2\s+get-dedicated-ip-pool\b"
         ),
-        safe_pattern!("sesv2-get-account", r"\baws\b.*?\bsesv2\s+get-account\b"),
+        safe_pattern!("sesv2-get-account", r"\baws\b.*?\bsesv2\s+get-account(?=\s|$)"),
     ]
 }
 

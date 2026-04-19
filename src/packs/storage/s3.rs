@@ -113,7 +113,11 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "s3api-delete-object",
-            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+s3api\s+delete-object\b",
+            // `(?=\s|$)` so unrelated subcommands that start with
+            // `delete-object` — e.g. `delete-object-tagging` (which only
+            // removes tags, not the object) — don't false-match this rule.
+            // The batch `delete-objects` (plural) has its own pattern below.
+            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+s3api\s+delete-object(?=\s|$)",
             "aws s3api delete-object permanently deletes an object.",
             Medium,
             "Deleting an object removes it from S3. For versioned buckets, this creates \

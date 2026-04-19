@@ -26,31 +26,31 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // unleash CLI - list/get operations
-        safe_pattern!("unleash-features-list", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+features?\s+list\b"),
-        safe_pattern!("unleash-features-get", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+features?\s+get\b"),
-        safe_pattern!("unleash-features-create", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+features?\s+create\b"),
-        safe_pattern!("unleash-features-update", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+features?\s+update\b"),
-        safe_pattern!("unleash-features-enable", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+features?\s+enable\b"),
+        safe_pattern!("unleash-features-list", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+features?\s+list(?=\s|$)"),
+        safe_pattern!("unleash-features-get", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+features?\s+get(?=\s|$)"),
+        safe_pattern!("unleash-features-create", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+features?\s+create(?=\s|$)"),
+        safe_pattern!("unleash-features-update", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+features?\s+update(?=\s|$)"),
+        safe_pattern!("unleash-features-enable", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+features?\s+enable(?=\s|$)"),
         safe_pattern!(
             "unleash-features-disable",
             r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+features?\s+disable\b"
         ),
-        safe_pattern!("unleash-projects-list", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+projects?\s+list\b"),
-        safe_pattern!("unleash-projects-get", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+projects?\s+get\b"),
-        safe_pattern!("unleash-projects-create", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+projects?\s+create\b"),
+        safe_pattern!("unleash-projects-list", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+projects?\s+list(?=\s|$)"),
+        safe_pattern!("unleash-projects-get", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+projects?\s+get(?=\s|$)"),
+        safe_pattern!("unleash-projects-create", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+projects?\s+create(?=\s|$)"),
         safe_pattern!(
             "unleash-environments-list",
-            r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+environments?\s+list\b"
+            r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+environments?\s+list(?=\s|$)"
         ),
         safe_pattern!(
             "unleash-environments-get",
-            r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+environments?\s+get\b"
+            r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+environments?\s+get(?=\s|$)"
         ),
-        safe_pattern!("unleash-strategies-list", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+strategies?\s+list\b"),
-        safe_pattern!("unleash-strategies-get", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+strategies?\s+get\b"),
+        safe_pattern!("unleash-strategies-list", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+strategies?\s+list(?=\s|$)"),
+        safe_pattern!("unleash-strategies-get", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+strategies?\s+get(?=\s|$)"),
         // Help and version commands
-        safe_pattern!("unleash-help", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--help|-h|help)\b"),
-        safe_pattern!("unleash-version", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--version|version)\b"),
+        safe_pattern!("unleash-help", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--help|-h|help)(?=\s|$)"),
+        safe_pattern!("unleash-version", r"unleash(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--version|version)(?=\s|$)"),
         // API - GET requests
         safe_pattern!(
             "unleash-api-get",

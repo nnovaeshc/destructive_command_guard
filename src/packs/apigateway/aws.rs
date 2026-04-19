@@ -36,92 +36,92 @@ fn create_safe_patterns() -> Vec<SafePattern> {
         // REST API (APIGateway) - read operations
         safe_pattern!(
             "apigateway-get-rest-api",
-            r"\baws\b.*?\bapigateway\s+get-rest-api(?=\s|$)"
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-rest-api(?=\s|$)"
         ),
         safe_pattern!(
             "apigateway-get-rest-apis",
-            r"\baws\b.*?\bapigateway\s+get-rest-apis(?=\s|$)"
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-rest-apis(?=\s|$)"
         ),
         safe_pattern!(
             "apigateway-get-resources",
-            r"\baws\b.*?\bapigateway\s+get-resources(?=\s|$)"
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-resources(?=\s|$)"
         ),
         safe_pattern!(
             "apigateway-get-resource",
-            r"\baws\b.*?\bapigateway\s+get-resource(?=\s|$)"
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-resource(?=\s|$)"
         ),
-        safe_pattern!("apigateway-get-method", r"\baws\b.*?\bapigateway\s+get-method(?=\s|$)"),
-        safe_pattern!("apigateway-get-stages", r"\baws\b.*?\bapigateway\s+get-stages(?=\s|$)"),
-        safe_pattern!("apigateway-get-stage", r"\baws\b.*?\bapigateway\s+get-stage(?=\s|$)"),
+        safe_pattern!("apigateway-get-method", r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-method(?=\s|$)"),
+        safe_pattern!("apigateway-get-stages", r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-stages(?=\s|$)"),
+        safe_pattern!("apigateway-get-stage", r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-stage(?=\s|$)"),
         safe_pattern!(
             "apigateway-get-deployments",
-            r"\baws\b.*?\bapigateway\s+get-deployments(?=\s|$)"
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-deployments(?=\s|$)"
         ),
         safe_pattern!(
             "apigateway-get-deployment",
-            r"\baws\b.*?\bapigateway\s+get-deployment(?=\s|$)"
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-deployment(?=\s|$)"
         ),
         safe_pattern!(
             "apigateway-get-api-keys",
-            r"\baws\b.*?\bapigateway\s+get-api-keys(?=\s|$)"
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-api-keys(?=\s|$)"
         ),
         safe_pattern!(
             "apigateway-get-api-key",
-            r"\baws\b.*?\bapigateway\s+get-api-key(?=\s|$)"
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-api-key(?=\s|$)"
         ),
         safe_pattern!(
             "apigateway-get-authorizers",
-            r"\baws\b.*?\bapigateway\s+get-authorizers(?=\s|$)"
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-authorizers(?=\s|$)"
         ),
-        safe_pattern!("apigateway-get-models", r"\baws\b.*?\bapigateway\s+get-models(?=\s|$)"),
+        safe_pattern!("apigateway-get-models", r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-models(?=\s|$)"),
         safe_pattern!(
             "apigateway-get-usage-plans",
-            r"\baws\b.*?\bapigateway\s+get-usage-plans(?=\s|$)"
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-usage-plans(?=\s|$)"
         ),
         safe_pattern!(
             "apigateway-get-domain-names",
-            r"\baws\b.*?\bapigateway\s+get-domain-names(?=\s|$)"
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-domain-names(?=\s|$)"
         ),
         // HTTP API (APIGatewayV2) - read operations
-        safe_pattern!("apigatewayv2-get-apis", r"\baws\b.*?\bapigatewayv2\s+get-apis(?=\s|$)"),
-        safe_pattern!("apigatewayv2-get-api", r"\baws\b.*?\bapigatewayv2\s+get-api(?=\s|$)"),
+        safe_pattern!("apigatewayv2-get-apis", r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+get-apis(?=\s|$)"),
+        safe_pattern!("apigatewayv2-get-api", r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+get-api(?=\s|$)"),
         safe_pattern!(
             "apigatewayv2-get-routes",
-            r"\baws\b.*?\bapigatewayv2\s+get-routes(?=\s|$)"
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+get-routes(?=\s|$)"
         ),
         safe_pattern!(
             "apigatewayv2-get-route",
-            r"\baws\b.*?\bapigatewayv2\s+get-route(?=\s|$)"
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+get-route(?=\s|$)"
         ),
         safe_pattern!(
             "apigatewayv2-get-integrations",
-            r"\baws\b.*?\bapigatewayv2\s+get-integrations(?=\s|$)"
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+get-integrations(?=\s|$)"
         ),
         safe_pattern!(
             "apigatewayv2-get-integration",
-            r"\baws\b.*?\bapigatewayv2\s+get-integration(?=\s|$)"
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+get-integration(?=\s|$)"
         ),
         safe_pattern!(
             "apigatewayv2-get-stages",
-            r"\baws\b.*?\bapigatewayv2\s+get-stages(?=\s|$)"
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+get-stages(?=\s|$)"
         ),
         safe_pattern!(
             "apigatewayv2-get-stage",
-            r"\baws\b.*?\bapigatewayv2\s+get-stage(?=\s|$)"
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+get-stage(?=\s|$)"
         ),
         safe_pattern!(
             "apigatewayv2-get-authorizers",
-            r"\baws\b.*?\bapigatewayv2\s+get-authorizers(?=\s|$)"
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+get-authorizers(?=\s|$)"
         ),
         safe_pattern!(
             "apigatewayv2-get-domain-names",
-            r"\baws\b.*?\bapigatewayv2\s+get-domain-names(?=\s|$)"
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+get-domain-names(?=\s|$)"
         ),
         // General AWS help
-        safe_pattern!("apigateway-help", r"\baws\b.*?\bapigateway\s+(?:help|\-\-help)(?=\s|$)"),
+        safe_pattern!("apigateway-help", r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+(?:help|\-\-help)(?=\s|$)"),
         safe_pattern!(
             "apigatewayv2-help",
-            r"\baws\b.*?\bapigatewayv2\s+(?:help|\-\-help)(?=\s|$)"
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+(?:help|\-\-help)(?=\s|$)"
         ),
     ]
 }
@@ -131,7 +131,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // REST API (APIGateway) - destructive operations
         destructive_pattern!(
             "apigateway-delete-rest-api",
-            r"\baws\b.*?\bapigateway\s+delete-rest-api\b",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+delete-rest-api\b",
             "aws apigateway delete-rest-api permanently removes a REST API and all its resources.",
             Critical,
             "Deleting a REST API removes all resources, methods, stages, deployments, and \
@@ -144,7 +144,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigateway-delete-resource",
-            r"\baws\b.*?\bapigateway\s+delete-resource\b",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+delete-resource\b",
             "aws apigateway delete-resource removes an API resource and its methods.",
             High,
             "Deleting a resource removes the URL path and all HTTP methods defined on it. \
@@ -157,7 +157,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigateway-delete-method",
-            r"\baws\b.*?\bapigateway\s+delete-method\b",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+delete-method\b",
             "aws apigateway delete-method removes an HTTP method from a resource.",
             Medium,
             "Deleting a method removes the HTTP operation (GET, POST, etc.) from a resource. \
@@ -169,7 +169,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigateway-delete-stage",
-            r"\baws\b.*?\bapigateway\s+delete-stage\b",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+delete-stage\b",
             "aws apigateway delete-stage removes a deployment stage from an API.",
             High,
             "Deleting a stage stops all traffic to that deployment. Stage variables, \
@@ -182,7 +182,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigateway-delete-deployment",
-            r"\baws\b.*?\bapigateway\s+delete-deployment\b",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+delete-deployment\b",
             "aws apigateway delete-deployment removes a deployment from an API.",
             Medium,
             "Deleting a deployment removes a specific API snapshot. If the deployment is \
@@ -195,7 +195,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigateway-delete-api-key",
-            r"\baws\b.*?\bapigateway\s+delete-api-key\b",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+delete-api-key\b",
             "aws apigateway delete-api-key removes an API key.",
             High,
             "Deleting an API key immediately revokes access for any client using that key. \
@@ -208,7 +208,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigateway-delete-authorizer",
-            r"\baws\b.*?\bapigateway\s+delete-authorizer\b",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+delete-authorizer\b",
             "aws apigateway delete-authorizer removes an authorizer from an API.",
             High,
             "Deleting an authorizer breaks authentication for all methods using it. Those \
@@ -221,7 +221,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigateway-delete-model",
-            r"\baws\b.*?\bapigateway\s+delete-model\b",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+delete-model\b",
             "aws apigateway delete-model removes a model from an API.",
             Medium,
             "Deleting a model removes the JSON schema definition. Methods referencing this \
@@ -234,7 +234,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigateway-delete-domain-name",
-            r"\baws\b.*?\bapigateway\s+delete-domain-name\b",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+delete-domain-name\b",
             "aws apigateway delete-domain-name removes a custom domain name.",
             High,
             "Deleting a custom domain name breaks all traffic using that domain. The ACM \
@@ -247,7 +247,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigateway-delete-usage-plan",
-            r"\baws\b.*?\bapigateway\s+delete-usage-plan\b",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+delete-usage-plan\b",
             "aws apigateway delete-usage-plan removes a usage plan.",
             High,
             "Deleting a usage plan removes throttling and quota limits for associated API \
@@ -261,7 +261,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         // HTTP API (APIGatewayV2) - destructive operations
         destructive_pattern!(
             "apigatewayv2-delete-api",
-            r"\baws\b.*?\bapigatewayv2\s+delete-api\b",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+delete-api\b",
             "aws apigatewayv2 delete-api permanently removes an HTTP API.",
             Critical,
             "Deleting an HTTP API removes all routes, integrations, stages, and configurations. \
@@ -274,7 +274,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigatewayv2-delete-route",
-            r"\baws\b.*?\bapigatewayv2\s+delete-route\b",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+delete-route\b",
             "aws apigatewayv2 delete-route removes a route from an HTTP API.",
             High,
             "Deleting a route removes the path and method combination from the API. Clients \
@@ -287,7 +287,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigatewayv2-delete-integration",
-            r"\baws\b.*?\bapigatewayv2\s+delete-integration\b",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+delete-integration\b",
             "aws apigatewayv2 delete-integration removes an integration from an HTTP API.",
             High,
             "Deleting an integration breaks routes using it. Those routes will fail to \
@@ -300,7 +300,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigatewayv2-delete-stage",
-            r"\baws\b.*?\bapigatewayv2\s+delete-stage\b",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+delete-stage\b",
             "aws apigatewayv2 delete-stage removes a stage from an HTTP API.",
             High,
             "Deleting a stage stops all traffic to that deployment. Stage variables, access \
@@ -313,7 +313,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigatewayv2-delete-authorizer",
-            r"\baws\b.*?\bapigatewayv2\s+delete-authorizer\b",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+delete-authorizer\b",
             "aws apigatewayv2 delete-authorizer removes an authorizer from an HTTP API.",
             High,
             "Deleting an authorizer breaks authentication for routes using it. JWT validation \
@@ -326,7 +326,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigatewayv2-delete-domain-name",
-            r"\baws\b.*?\bapigatewayv2\s+delete-domain-name\b",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+delete-domain-name\b",
             "aws apigatewayv2 delete-domain-name removes a custom domain name from an HTTP API.",
             High,
             "Deleting a custom domain breaks traffic using that hostname. API mappings are \
@@ -339,7 +339,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigatewayv2-delete-route-response",
-            r"\baws\b.*?\bapigatewayv2\s+delete-route-response\b",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+delete-route-response\b",
             "aws apigatewayv2 delete-route-response removes a route response from an HTTP API.",
             Medium,
             "Deleting a route response removes response configuration for WebSocket APIs. \
@@ -352,7 +352,7 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
         ),
         destructive_pattern!(
             "apigatewayv2-delete-integration-response",
-            r"\baws\b.*?\bapigatewayv2\s+delete-integration-response\b",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+delete-integration-response\b",
             "aws apigatewayv2 delete-integration-response removes an integration response.",
             Medium,
             "Deleting an integration response removes response mapping for WebSocket APIs. \

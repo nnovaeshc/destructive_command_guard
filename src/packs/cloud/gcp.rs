@@ -67,9 +67,9 @@ fn create_safe_patterns() -> Vec<SafePattern> {
         // gsutil ls is safe. Require `ls` to be followed by whitespace or
         // end-of-string so `gsutil rm -r gs://ls-archive/` (bucket named
         // `ls-archive`) doesn't bypass via the `ls` substring.
-        safe_pattern!("gsutil-ls", r"gsutil\b.*?\bls(?=\s|$)"),
+        safe_pattern!("gsutil-ls", r"gsutil\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ls(?=\s|$)"),
         // gsutil cp is generally safe (copy). Same trailing-boundary rule.
-        safe_pattern!("gsutil-cp", r"gsutil\b.*?\bcp(?=\s|$)"),
+        safe_pattern!("gsutil-cp", r"gsutil\b(?:\s+--?\S+(?:\s+\S+)?)*\s+cp(?=\s|$)"),
         // gcloud config / auth / info are safe.  Require the subcommand
         // to be preceded by whitespace (not `-`) so the pattern doesn't
         // false-match destructive commands with `--config`, `--auth-token`,

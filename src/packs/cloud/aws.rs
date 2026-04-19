@@ -74,17 +74,32 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             r"aws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+\S+\s+get-"
         ),
         // s3 ls is safe
-        safe_pattern!("s3-ls", r"aws\b.*?\bs3\s+ls"),
+        safe_pattern!(
+            "s3-ls",
+            r"aws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+s3\s+ls(?=\s|$)"
+        ),
         // s3 cp is generally safe (copy)
-        safe_pattern!("s3-cp", r"aws\b.*?\bs3\s+cp"),
+        safe_pattern!(
+            "s3-cp",
+            r"aws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+s3\s+cp(?=\s|$)"
+        ),
         // dry-run flag
         safe_pattern!("aws-dry-run", r"aws\b.*--dry-run"),
         // sts get-caller-identity is safe
-        safe_pattern!("sts-identity", r"aws\b.*?\bsts\s+get-caller-identity"),
+        safe_pattern!(
+            "sts-identity",
+            r"aws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+sts\s+get-caller-identity(?=\s|$)"
+        ),
         // cloudformation describe/list
-        safe_pattern!("cfn-describe", r"aws\b.*?\bcloudformation\s+(?:describe|list)-"),
+        safe_pattern!(
+            "cfn-describe",
+            r"aws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+cloudformation\s+(?:describe|list)-"
+        ),
         // ecr get-login-password is safe
-        safe_pattern!("ecr-login", r"aws\b.*?\becr\s+get-login"),
+        safe_pattern!(
+            "ecr-login",
+            r"aws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ecr\s+get-login"
+        ),
 
         // --- Athena start-query-execution: non-destructive query shapes ---
         //

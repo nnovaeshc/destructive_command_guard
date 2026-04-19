@@ -47,13 +47,29 @@ pub fn create_pack() -> Pack {
 
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
-        // describe/list operations are safe (read-only)
-        safe_pattern!("gcloud-describe", r"gcloud\b.*?\s+\S+\s+\S+\s+describe"),
-        safe_pattern!("gcloud-list", r"gcloud\b.*?\s+\S+\s+\S+\s+list"),
-        // gsutil ls is safe
-        safe_pattern!("gsutil-ls", r"gsutil\b.*?\bls"),
-        // gsutil cp is generally safe (copy)
-        safe_pattern!("gsutil-cp", r"gsutil\b.*?\bcp"),
+        // describe/list operations are safe (read-only).
+        //
+        // `(?:\s+--?\S+(?:\s+\S+)?)*` consumes only flag-value pairs before
+        // the two service tokens. Otherwise a destructive command with an
+        // arg value that happens to be `describe` or `list` (e.g.
+        // `gcloud compute instances delete my-vm --format list`) would
+        // match the safe pattern and bypass the destructive check.
+        // `(?=\s|$)` closes the trailing side so `list-old-pods` cannot
+        // pose as the `list` subcommand.
+        safe_pattern!(
+            "gcloud-describe",
+            r"gcloud\b(?:\s+--?\S+(?:\s+\S+)?)*\s+\S+\s+\S+\s+describe(?=\s|$)"
+        ),
+        safe_pattern!(
+            "gcloud-list",
+            r"gcloud\b(?:\s+--?\S+(?:\s+\S+)?)*\s+\S+\s+\S+\s+list(?=\s|$)"
+        ),
+        // gsutil ls is safe. Require `ls` to be followed by whitespace or
+        // end-of-string so `gsutil rm -r gs://ls-archive/` (bucket named
+        // `ls-archive`) doesn't bypass via the `ls` substring.
+        safe_pattern!("gsutil-ls", r"gsutil\b.*?\bls(?=\s|$)"),
+        // gsutil cp is generally safe (copy). Same trailing-boundary rule.
+        safe_pattern!("gsutil-cp", r"gsutil\b.*?\bcp(?=\s|$)"),
         // gcloud config / auth / info are safe.  Require the subcommand
         // to be preceded by whitespace (not `-`) so the pattern doesn't
         // false-match destructive commands with `--config`, `--auth-token`,

@@ -46,8 +46,20 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // show/list operations are safe (read-only)
-        safe_pattern!("az-show", r"az\b.*?\s+\S+\s+show"),
-        safe_pattern!("az-list", r"az\b.*?\s+\S+\s+list"),
+        // `(?:\s+--?\S+(?:\s+\S+)?)*` consumes only flag-value pairs before
+        // the service-name token. Otherwise a destructive command with an
+        // arg value that happens to be `show` or `list` (e.g.
+        // `az vm delete --ids show-vm-id`) would match the safe pattern
+        // and bypass the destructive check. `(?=\s|$)` closes the trailing
+        // side so `show-me-foo` can't pose as the `show` subcommand.
+        safe_pattern!(
+            "az-show",
+            r"az\b(?:\s+--?\S+(?:\s+\S+)?)*\s+\S+\s+show(?=\s|$)"
+        ),
+        safe_pattern!(
+            "az-list",
+            r"az\b(?:\s+--?\S+(?:\s+\S+)?)*\s+\S+\s+list(?=\s|$)"
+        ),
         // az account is safe.  Require `account` to be preceded by
         // whitespace so the pattern doesn't false-match `--account-name`
         // arguments (a common flag on many destructive subcommands,

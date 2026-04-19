@@ -27,21 +27,27 @@ pub fn create_pack() -> Pack {
 }
 
 fn create_safe_patterns() -> Vec<SafePattern> {
+    // `(?=\s|$)` on each subcommand stops a container name containing the
+    // subcommand keyword (e.g. `ps-container`, `logs-archive`) from making
+    // a destructive command short-circuit as safe. Without this anchor,
+    //   podman rm -f ps-container
+    // would match the `podman-ps` safe pattern via the `ps` inside
+    // `ps-container` and bypass the `rm-force` destructive rule.
     vec![
         // podman ps/images/logs are safe (read-only)
-        safe_pattern!("podman-ps", r"podman\b.*?\s+ps\b"),
-        safe_pattern!("podman-images", r"podman\b.*?\s+images\b"),
-        safe_pattern!("podman-logs", r"podman\b.*?\s+logs\b"),
+        safe_pattern!("podman-ps", r"podman\b.*?\s+ps(?=\s|$)"),
+        safe_pattern!("podman-images", r"podman\b.*?\s+images(?=\s|$)"),
+        safe_pattern!("podman-logs", r"podman\b.*?\s+logs(?=\s|$)"),
         // podman inspect is safe
-        safe_pattern!("podman-inspect", r"podman\b.*?\s+inspect\b"),
+        safe_pattern!("podman-inspect", r"podman\b.*?\s+inspect(?=\s|$)"),
         // podman build is generally safe
-        safe_pattern!("podman-build", r"podman\b.*?\s+build\b"),
+        safe_pattern!("podman-build", r"podman\b.*?\s+build(?=\s|$)"),
         // podman pull is safe
-        safe_pattern!("podman-pull", r"podman\b.*?\s+pull\b"),
+        safe_pattern!("podman-pull", r"podman\b.*?\s+pull(?=\s|$)"),
         // podman run is allowed
-        safe_pattern!("podman-run", r"podman\b.*?\s+run\b"),
+        safe_pattern!("podman-run", r"podman\b.*?\s+run(?=\s|$)"),
         // podman exec is generally safe
-        safe_pattern!("podman-exec", r"podman\b.*?\s+exec\b"),
+        safe_pattern!("podman-exec", r"podman\b.*?\s+exec(?=\s|$)"),
     ]
 }
 

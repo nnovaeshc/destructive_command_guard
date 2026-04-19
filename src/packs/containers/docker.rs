@@ -167,23 +167,28 @@ pub fn create_pack() -> Pack {
 }
 
 fn create_safe_patterns() -> Vec<SafePattern> {
+    // `(?=\s|$)` on each subcommand stops a container name containing the
+    // subcommand keyword (e.g. `ps-container`, `logs-archive`, `build-server`)
+    // from making a destructive command short-circuit as safe. Without this
+    // anchor, `docker rm -f ps-container` would match `docker-ps` via the
+    // `ps` inside `ps-container` and bypass the `rm-force` destructive rule.
     vec![
         // docker ps/images/logs are safe (read-only)
-        safe_pattern!("docker-ps", r"docker\b.*?\s+ps\b"),
-        safe_pattern!("docker-images", r"docker\b.*?\s+images\b"),
-        safe_pattern!("docker-logs", r"docker\b.*?\s+logs\b"),
+        safe_pattern!("docker-ps", r"docker\b.*?\s+ps(?=\s|$)"),
+        safe_pattern!("docker-images", r"docker\b.*?\s+images(?=\s|$)"),
+        safe_pattern!("docker-logs", r"docker\b.*?\s+logs(?=\s|$)"),
         // docker inspect is safe
-        safe_pattern!("docker-inspect", r"docker\b.*?\s+inspect\b"),
+        safe_pattern!("docker-inspect", r"docker\b.*?\s+inspect(?=\s|$)"),
         // docker build is generally safe
-        safe_pattern!("docker-build", r"docker\b.*?\s+build\b"),
+        safe_pattern!("docker-build", r"docker\b.*?\s+build(?=\s|$)"),
         // docker pull is safe
-        safe_pattern!("docker-pull", r"docker\b.*?\s+pull\b"),
+        safe_pattern!("docker-pull", r"docker\b.*?\s+pull(?=\s|$)"),
         // docker run is allowed (creates, doesn't destroy)
-        safe_pattern!("docker-run", r"docker\b.*?\s+run\b"),
+        safe_pattern!("docker-run", r"docker\b.*?\s+run(?=\s|$)"),
         // docker exec is generally safe
-        safe_pattern!("docker-exec", r"docker\b.*?\s+exec\b"),
+        safe_pattern!("docker-exec", r"docker\b.*?\s+exec(?=\s|$)"),
         // docker stats is safe
-        safe_pattern!("docker-stats", r"docker\b.*?\s+stats\b"),
+        safe_pattern!("docker-stats", r"docker\b.*?\s+stats(?=\s|$)"),
         // Dry-run flags
         safe_pattern!("docker-dry-run", r"docker\s+.*--dry-run"),
     ]
@@ -415,5 +420,34 @@ mod tests {
         assert_blocks(&pack, "docker rmi -nf image", "forcibly removes"); // Combined flags (no-prune + force)
 
         assert_allows(&pack, "docker rmi image");
+    }
+
+    #[test]
+    fn safe_subcommand_inside_container_name_does_not_short_circuit() {
+        // Container names often contain subcommand keywords as substrings:
+        //   ps-container, logs-archive, build-server, run-worker
+        // Without the `(?=\s|$)` anchor, `docker rm -f ps-container` would
+        // match the `docker-ps` safe pattern and bypass the `rm-force`
+        // destructive rule.
+        let pack = create_pack();
+        let matched = pack
+            .check("docker rm -f ps-container")
+            .expect("destructive rm -f must still block when name contains ps");
+        assert_eq!(matched.name, Some("rm-force"));
+
+        let matched = pack
+            .check("docker rmi -f build-server-img")
+            .expect("destructive rmi -f must still block when name contains build");
+        assert_eq!(matched.name, Some("rmi-force"));
+
+        let matched = pack
+            .check("docker volume rm logs-archive")
+            .expect("destructive volume rm must still block when name contains logs");
+        assert_eq!(matched.name, Some("volume-rm"));
+
+        // Bare subcommands still short-circuit as safe.
+        assert_allows(&pack, "docker ps");
+        assert_allows(&pack, "docker logs mycontainer");
+        assert_allows(&pack, "docker build -t app .");
     }
 }

@@ -37,27 +37,30 @@ fn create_safe_patterns() -> Vec<SafePattern> {
     //   systemctl -H remote-host status sshd
     //   systemctl --user status my-service
     //   systemctl -M machine list-units
-    // Use `systemctl\b.*?\s+<verb>\b` so those flag-positions don't bypass.
+    // Use `systemctl\b.*?\s+<verb>(?=\s|$)` so those flag-positions don't
+    // bypass AND unit names containing the verb keyword as a substring
+    // (e.g. `systemctl stop status-monitor.service`) don't short-circuit
+    // destructive ops via the safe pattern.
     vec![
         // status commands are safe
-        safe_pattern!("systemctl-status", r"systemctl\b.*?\s+status\b"),
-        safe_pattern!("service-status", r"service\s+\S+\s+status\b"),
+        safe_pattern!("systemctl-status", r"systemctl\b.*?\s+status(?=\s|$)"),
+        safe_pattern!("service-status", r"service\s+\S+\s+status(?=\s|$)"),
         // list commands are safe
         safe_pattern!(
             "systemctl-list",
-            r"systemctl\b.*?\s+list-(?:units|unit-files|sockets|timers)\b"
+            r"systemctl\b.*?\s+list-(?:units|unit-files|sockets|timers)(?=\s|$)"
         ),
         // show is safe
-        safe_pattern!("systemctl-show", r"systemctl\b.*?\s+show\b"),
+        safe_pattern!("systemctl-show", r"systemctl\b.*?\s+show(?=\s|$)"),
         // is-active/is-enabled are safe
         safe_pattern!(
             "systemctl-is",
-            r"systemctl\b.*?\s+is-(?:active|enabled|failed)\b"
+            r"systemctl\b.*?\s+is-(?:active|enabled|failed)(?=\s|$)"
         ),
         // daemon-reload is generally safe
-        safe_pattern!("systemctl-reload", r"systemctl\b.*?\s+daemon-reload\b"),
+        safe_pattern!("systemctl-reload", r"systemctl\b.*?\s+daemon-reload(?=\s|$)"),
         // cat is safe (view unit file)
-        safe_pattern!("systemctl-cat", r"systemctl\b.*?\s+cat\b"),
+        safe_pattern!("systemctl-cat", r"systemctl\b.*?\s+cat(?=\s|$)"),
         // journalctl is safe (logs)
         safe_pattern!("journalctl", r"\bjournalctl\b"),
     ]

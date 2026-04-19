@@ -31,56 +31,56 @@ fn create_safe_patterns() -> Vec<SafePattern> {
         // az storage container operations (read-only)
         safe_pattern!(
             "az-storage-container-list",
-            r"\baz\b.*?\bstorage\s+container\s+list\b"
+            r"\baz\b.*?\bstorage\s+container\s+list(?=\s|$)"
         ),
         safe_pattern!(
             "az-storage-container-show",
-            r"\baz\b.*?\bstorage\s+container\s+show\b"
+            r"\baz\b.*?\bstorage\s+container\s+show(?=\s|$)"
         ),
         safe_pattern!(
             "az-storage-container-exists",
-            r"\baz\b.*?\bstorage\s+container\s+exists\b"
+            r"\baz\b.*?\bstorage\s+container\s+exists(?=\s|$)"
         ),
         // az storage blob operations (read-only)
-        safe_pattern!("az-storage-blob-list", r"\baz\b.*?\bstorage\s+blob\s+list\b"),
-        safe_pattern!("az-storage-blob-show", r"\baz\b.*?\bstorage\s+blob\s+show\b"),
+        safe_pattern!("az-storage-blob-list", r"\baz\b.*?\bstorage\s+blob\s+list(?=\s|$)"),
+        safe_pattern!("az-storage-blob-show", r"\baz\b.*?\bstorage\s+blob\s+show(?=\s|$)"),
         safe_pattern!(
             "az-storage-blob-exists",
-            r"\baz\b.*?\bstorage\s+blob\s+exists\b"
+            r"\baz\b.*?\bstorage\s+blob\s+exists(?=\s|$)"
         ),
         safe_pattern!(
             "az-storage-blob-download",
-            r"\baz\b.*?\bstorage\s+blob\s+download\b"
+            r"\baz\b.*?\bstorage\s+blob\s+download(?=\s|$)"
         ),
         safe_pattern!(
             "az-storage-blob-download-batch",
-            r"\baz\b.*?\bstorage\s+blob\s+download-batch\b"
+            r"\baz\b.*?\bstorage\s+blob\s+download-batch(?=\s|$)"
         ),
-        safe_pattern!("az-storage-blob-url", r"\baz\b.*?\bstorage\s+blob\s+url\b"),
+        safe_pattern!("az-storage-blob-url", r"\baz\b.*?\bstorage\s+blob\s+url(?=\s|$)"),
         safe_pattern!(
             "az-storage-blob-metadata-show",
-            r"\baz\b.*?\bstorage\s+blob\s+metadata\s+show\b"
+            r"\baz\b.*?\bstorage\s+blob\s+metadata\s+show(?=\s|$)"
         ),
         // az storage account operations (read-only)
         safe_pattern!(
             "az-storage-account-list",
-            r"\baz\b.*?\bstorage\s+account\s+list\b"
+            r"\baz\b.*?\bstorage\s+account\s+list(?=\s|$)"
         ),
         safe_pattern!(
             "az-storage-account-show",
-            r"\baz\b.*?\bstorage\s+account\s+show\b"
+            r"\baz\b.*?\bstorage\s+account\s+show(?=\s|$)"
         ),
         safe_pattern!(
             "az-storage-account-keys-list",
-            r"\baz\b.*?\bstorage\s+account\s+keys\s+list\b"
+            r"\baz\b.*?\bstorage\s+account\s+keys\s+list(?=\s|$)"
         ),
         // azcopy operations (read-only)
-        safe_pattern!("azcopy-list", r"\bazcopy\s+(?:--\S+\s+)*list\b"),
-        safe_pattern!("azcopy-copy", r"\bazcopy\s+(?:--\S+\s+)*copy\b"),
-        safe_pattern!("azcopy-jobs-list", r"\bazcopy\s+(?:--\S+\s+)*jobs\s+list\b"),
-        safe_pattern!("azcopy-jobs-show", r"\bazcopy\s+(?:--\S+\s+)*jobs\s+show\b"),
-        safe_pattern!("azcopy-login", r"\bazcopy\s+(?:--\S+\s+)*login\b"),
-        safe_pattern!("azcopy-env", r"\bazcopy\s+(?:--\S+\s+)*env\b"),
+        safe_pattern!("azcopy-list", r"\bazcopy\s+(?:--\S+\s+)*list(?=\s|$)"),
+        safe_pattern!("azcopy-copy", r"\bazcopy\s+(?:--\S+\s+)*copy(?=\s|$)"),
+        safe_pattern!("azcopy-jobs-list", r"\bazcopy\s+(?:--\S+\s+)*jobs\s+list(?=\s|$)"),
+        safe_pattern!("azcopy-jobs-show", r"\bazcopy\s+(?:--\S+\s+)*jobs\s+show(?=\s|$)"),
+        safe_pattern!("azcopy-login", r"\bazcopy\s+(?:--\S+\s+)*login(?=\s|$)"),
+        safe_pattern!("azcopy-env", r"\bazcopy\s+(?:--\S+\s+)*env(?=\s|$)"),
     ]
 }
 

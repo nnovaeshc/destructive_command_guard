@@ -167,28 +167,58 @@ pub fn create_pack() -> Pack {
 }
 
 fn create_safe_patterns() -> Vec<SafePattern> {
-    // `(?=\s|$)` on each subcommand stops a container name containing the
-    // subcommand keyword (e.g. `ps-container`, `logs-archive`, `build-server`)
-    // from making a destructive command short-circuit as safe. Without this
-    // anchor, `docker rm -f ps-container` would match `docker-ps` via the
-    // `ps` inside `ps-container` and bypass the `rm-force` destructive rule.
+    // Two safeguards on each safe subcommand:
+    //   1. `(?:\s+--?\S+(?:\s+\S+)?)*` only accepts flag-value pairs between
+    //      `docker` and the safe subcommand — so a destructive command like
+    //      `docker rm -f ps` (container literally named `ps`) can't match
+    //      `docker-ps` via the positional arg.
+    //   2. `(?=\s|$)` on the trailing side so a container name that starts
+    //      with the subcommand keyword (e.g. `ps-container`, `logs-archive`)
+    //      can't short-circuit destructive ops either.
     vec![
         // docker ps/images/logs are safe (read-only)
-        safe_pattern!("docker-ps", r"docker\b.*?\s+ps(?=\s|$)"),
-        safe_pattern!("docker-images", r"docker\b.*?\s+images(?=\s|$)"),
-        safe_pattern!("docker-logs", r"docker\b.*?\s+logs(?=\s|$)"),
+        safe_pattern!(
+            "docker-ps",
+            r"docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ps(?=\s|$)"
+        ),
+        safe_pattern!(
+            "docker-images",
+            r"docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+images(?=\s|$)"
+        ),
+        safe_pattern!(
+            "docker-logs",
+            r"docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+logs(?=\s|$)"
+        ),
         // docker inspect is safe
-        safe_pattern!("docker-inspect", r"docker\b.*?\s+inspect(?=\s|$)"),
+        safe_pattern!(
+            "docker-inspect",
+            r"docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+inspect(?=\s|$)"
+        ),
         // docker build is generally safe
-        safe_pattern!("docker-build", r"docker\b.*?\s+build(?=\s|$)"),
+        safe_pattern!(
+            "docker-build",
+            r"docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+build(?=\s|$)"
+        ),
         // docker pull is safe
-        safe_pattern!("docker-pull", r"docker\b.*?\s+pull(?=\s|$)"),
+        safe_pattern!(
+            "docker-pull",
+            r"docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+pull(?=\s|$)"
+        ),
         // docker run is allowed (creates, doesn't destroy)
-        safe_pattern!("docker-run", r"docker\b.*?\s+run(?=\s|$)"),
+        safe_pattern!(
+            "docker-run",
+            r"docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+run(?=\s|$)"
+        ),
         // docker exec is generally safe
-        safe_pattern!("docker-exec", r"docker\b.*?\s+exec(?=\s|$)"),
+        safe_pattern!(
+            "docker-exec",
+            r"docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+exec(?=\s|$)"
+        ),
         // docker stats is safe
-        safe_pattern!("docker-stats", r"docker\b.*?\s+stats(?=\s|$)"),
+        safe_pattern!(
+            "docker-stats",
+            r"docker\b(?:\s+--?\S+(?:\s+\S+)?)*\s+stats(?=\s|$)"
+        ),
         // Dry-run flags
         safe_pattern!("docker-dry-run", r"docker\s+.*--dry-run"),
     ]
@@ -420,6 +450,29 @@ mod tests {
         assert_blocks(&pack, "docker rmi -nf image", "forcibly removes"); // Combined flags (no-prune + force)
 
         assert_allows(&pack, "docker rmi image");
+    }
+
+    #[test]
+    fn container_named_as_safe_subcommand_does_not_short_circuit() {
+        // If a container is literally named the same as a safe subcommand
+        // (e.g. `ps`, `logs`, `build`, `run`), the destructive rule must
+        // still win. Previously `docker rm -f ps` matched `docker-ps` safe
+        // via the positional arg.
+        let pack = create_pack();
+        let matched = pack
+            .check("docker rm -f ps")
+            .expect("container literally named `ps` must still trigger rm-force");
+        assert_eq!(matched.name, Some("rm-force"));
+
+        let matched = pack
+            .check("docker rm --force logs")
+            .expect("container literally named `logs` must still trigger rm-force");
+        assert_eq!(matched.name, Some("rm-force"));
+
+        let matched = pack
+            .check("docker rmi -f build")
+            .expect("image literally named `build` must still trigger rmi-force");
+        assert_eq!(matched.name, Some("rmi-force"));
     }
 
     #[test]

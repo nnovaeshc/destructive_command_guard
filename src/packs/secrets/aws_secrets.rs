@@ -26,39 +26,39 @@ fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         safe_pattern!(
             "aws-secretsmanager-list",
-            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+secretsmanager\s+list-secrets\b"
+            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+secretsmanager\s+list-secrets(?=\s|$)"
         ),
         safe_pattern!(
             "aws-secretsmanager-describe",
-            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+secretsmanager\s+describe-secret\b"
+            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+secretsmanager\s+describe-secret(?=\s|$)"
         ),
         safe_pattern!(
             "aws-secretsmanager-get",
-            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+secretsmanager\s+get-secret-value\b"
+            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+secretsmanager\s+get-secret-value(?=\s|$)"
         ),
         safe_pattern!(
             "aws-secretsmanager-list-versions",
-            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+secretsmanager\s+list-secret-version-ids\b"
+            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+secretsmanager\s+list-secret-version-ids(?=\s|$)"
         ),
         safe_pattern!(
             "aws-secretsmanager-get-resource-policy",
-            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+secretsmanager\s+get-resource-policy\b"
+            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+secretsmanager\s+get-resource-policy(?=\s|$)"
         ),
         safe_pattern!(
             "aws-secretsmanager-get-random-password",
-            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+secretsmanager\s+get-random-password\b"
+            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+secretsmanager\s+get-random-password(?=\s|$)"
         ),
         safe_pattern!(
             "aws-ssm-get-parameter",
-            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+ssm\s+get-parameter\b"
+            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+ssm\s+get-parameter(?=\s|$)"
         ),
         safe_pattern!(
             "aws-ssm-get-parameters",
-            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+ssm\s+get-parameters\b"
+            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+ssm\s+get-parameters(?=\s|$)"
         ),
         safe_pattern!(
             "aws-ssm-describe-parameters",
-            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+ssm\s+describe-parameters\b"
+            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+ssm\s+describe-parameters(?=\s|$)"
         ),
     ]
 }

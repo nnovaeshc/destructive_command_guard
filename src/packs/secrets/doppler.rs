@@ -26,32 +26,32 @@ fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         safe_pattern!(
             "doppler-secrets-get",
-            r"doppler(?:\s+--?\S+(?:\s+\S+)?)*\s+secrets\s+get\b"
+            r"doppler(?:\s+--?\S+(?:\s+\S+)?)*\s+secrets\s+get(?=\s|$)"
         ),
         safe_pattern!(
             "doppler-secrets-list",
-            r"doppler(?:\s+--?\S+(?:\s+\S+)?)*\s+secrets\s+list\b"
+            r"doppler(?:\s+--?\S+(?:\s+\S+)?)*\s+secrets\s+list(?=\s|$)"
         ),
-        safe_pattern!("doppler-run", r"doppler(?:\s+--?\S+(?:\s+\S+)?)*\s+run\b"),
+        safe_pattern!("doppler-run", r"doppler(?:\s+--?\S+(?:\s+\S+)?)*\s+run(?=\s|$)"),
         safe_pattern!(
             "doppler-configure",
-            r"doppler(?:\s+--?\S+(?:\s+\S+)?)*\s+configure\b"
+            r"doppler(?:\s+--?\S+(?:\s+\S+)?)*\s+configure(?=\s|$)"
         ),
         safe_pattern!(
             "doppler-setup",
-            r"doppler(?:\s+--?\S+(?:\s+\S+)?)*\s+setup\b"
+            r"doppler(?:\s+--?\S+(?:\s+\S+)?)*\s+setup(?=\s|$)"
         ),
         safe_pattern!(
             "doppler-projects-list",
-            r"doppler(?:\s+--?\S+(?:\s+\S+)?)*\s+projects\s+list\b"
+            r"doppler(?:\s+--?\S+(?:\s+\S+)?)*\s+projects\s+list(?=\s|$)"
         ),
         safe_pattern!(
             "doppler-environments-list",
-            r"doppler(?:\s+--?\S+(?:\s+\S+)?)*\s+environments\s+list\b"
+            r"doppler(?:\s+--?\S+(?:\s+\S+)?)*\s+environments\s+list(?=\s|$)"
         ),
         safe_pattern!(
             "doppler-configs-list",
-            r"doppler(?:\s+--?\S+(?:\s+\S+)?)*\s+configs\s+list\b"
+            r"doppler(?:\s+--?\S+(?:\s+\S+)?)*\s+configs\s+list(?=\s|$)"
         ),
     ]
 }

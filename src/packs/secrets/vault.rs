@@ -25,43 +25,43 @@ pub fn create_pack() -> Pack {
 
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
-        safe_pattern!("vault-status", r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+status\b"),
+        safe_pattern!("vault-status", r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+status(?=\s|$)"),
         safe_pattern!(
             "vault-version",
-            r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+version\b"
+            r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+version(?=\s|$)"
         ),
-        safe_pattern!("vault-read", r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+read\b"),
+        safe_pattern!("vault-read", r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+read(?=\s|$)"),
         safe_pattern!(
             "vault-kv-get",
-            r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+kv\s+get\b"
+            r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+kv\s+get(?=\s|$)"
         ),
         safe_pattern!(
             "vault-kv-list",
-            r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+kv\s+list\b"
+            r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+kv\s+list(?=\s|$)"
         ),
         safe_pattern!(
             "vault-secrets-list",
-            r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+secrets\s+list\b"
+            r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+secrets\s+list(?=\s|$)"
         ),
         safe_pattern!(
             "vault-policy-list",
-            r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+policy\s+list\b"
+            r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+policy\s+list(?=\s|$)"
         ),
         safe_pattern!(
             "vault-token-lookup",
-            r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+token\s+lookup\b"
+            r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+token\s+lookup(?=\s|$)"
         ),
         safe_pattern!(
             "vault-auth-list",
-            r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+auth\s+list\b"
+            r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+auth\s+list(?=\s|$)"
         ),
         safe_pattern!(
             "vault-audit-list",
-            r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+audit\s+list\b"
+            r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+audit\s+list(?=\s|$)"
         ),
         safe_pattern!(
             "vault-lease-lookup",
-            r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+lease\s+lookup\b"
+            r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+lease\s+lookup(?=\s|$)"
         ),
     ]
 }

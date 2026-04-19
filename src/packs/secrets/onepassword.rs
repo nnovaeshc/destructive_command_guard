@@ -24,36 +24,36 @@ pub fn create_pack() -> Pack {
 
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
-        safe_pattern!("op-whoami", r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+whoami\b"),
+        safe_pattern!("op-whoami", r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+whoami(?=\s|$)"),
         safe_pattern!(
             "op-account-get",
-            r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+account\s+get\b"
+            r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+account\s+get(?=\s|$)"
         ),
-        safe_pattern!("op-read", r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+read\b"),
-        safe_pattern!("op-item-get", r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+item\s+get\b"),
+        safe_pattern!("op-read", r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+read(?=\s|$)"),
+        safe_pattern!("op-item-get", r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+item\s+get(?=\s|$)"),
         safe_pattern!(
             "op-item-list",
-            r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+item\s+list\b"
+            r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+item\s+list(?=\s|$)"
         ),
         safe_pattern!(
             "op-document-get",
-            r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+document\s+get\b"
+            r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+document\s+get(?=\s|$)"
         ),
         safe_pattern!(
             "op-vault-list",
-            r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+vault\s+list\b"
+            r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+vault\s+list(?=\s|$)"
         ),
         safe_pattern!(
             "op-vault-get",
-            r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+vault\s+get\b"
+            r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+vault\s+get(?=\s|$)"
         ),
         safe_pattern!(
             "op-user-list",
-            r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+user\s+list\b"
+            r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+user\s+list(?=\s|$)"
         ),
         safe_pattern!(
             "op-group-list",
-            r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+group\s+list\b"
+            r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+group\s+list(?=\s|$)"
         ),
     ]
 }

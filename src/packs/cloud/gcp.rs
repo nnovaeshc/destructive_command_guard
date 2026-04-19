@@ -59,9 +59,9 @@ fn create_safe_patterns() -> Vec<SafePattern> {
         // false-match destructive commands with `--config`, `--auth-token`,
         // or `--info-...` flags. A safe-first match on a flag would
         // BYPASS the destructive check.
-        safe_pattern!("gcloud-config", r"gcloud\b.*?\s+config\b"),
-        safe_pattern!("gcloud-auth", r"gcloud\b.*?\s+auth\b"),
-        safe_pattern!("gcloud-info", r"gcloud\b.*?\s+info\b"),
+        safe_pattern!("gcloud-config", r"gcloud\b.*?\s+config(?=\s|$)"),
+        safe_pattern!("gcloud-auth", r"gcloud\b.*?\s+auth(?=\s|$)"),
+        safe_pattern!("gcloud-info", r"gcloud\b.*?\s+info(?=\s|$)"),
     ]
 }
 

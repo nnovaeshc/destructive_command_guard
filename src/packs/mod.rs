@@ -2450,6 +2450,51 @@ mod tests {
     }
 
     #[test]
+    fn split_command_segments_handles_basic_separators() {
+        assert_eq!(split_command_segments("docker ps"), vec!["docker ps"]);
+        assert_eq!(
+            split_command_segments("docker ps; docker logs x"),
+            vec!["docker ps", "docker logs x"]
+        );
+        assert_eq!(
+            split_command_segments("docker ps && docker logs x"),
+            vec!["docker ps", "docker logs x"]
+        );
+        assert_eq!(
+            split_command_segments("a || b"),
+            vec!["a", "b"]
+        );
+        // Pipeline `|` is NOT a split point.
+        assert_eq!(
+            split_command_segments("docker ps | grep nginx"),
+            vec!["docker ps | grep nginx"]
+        );
+        // Single `&` is background, also not split.
+        assert_eq!(
+            split_command_segments("docker logs foo &"),
+            vec!["docker logs foo &"]
+        );
+    }
+
+    #[test]
+    fn split_command_segments_respects_quotes_and_escapes() {
+        // Separators inside quotes must not split.
+        assert_eq!(
+            split_command_segments(r#"echo "a; b && c || d""#),
+            vec![r#"echo "a; b && c || d""#]
+        );
+        assert_eq!(
+            split_command_segments("echo 'a; b && c'"),
+            vec!["echo 'a; b && c'"]
+        );
+        // Escaped separators outside single quotes are literal.
+        assert_eq!(
+            split_command_segments(r"echo a\; b"),
+            vec![r"echo a\; b"]
+        );
+    }
+
+    #[test]
     fn compound_command_with_safe_prefix_and_destructive_suffix_is_blocked() {
         // End-to-end regression: `docker ps; docker system prune -a --volumes`
         // must be blocked. This is the compound-command bypass class. We

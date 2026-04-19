@@ -26,14 +26,39 @@ pub fn create_pack() -> Pack {
 }
 
 fn create_safe_patterns() -> Vec<SafePattern> {
+    // `(?=\s|$)` on each subcommand so an archive name containing the
+    // subcommand keyword as a substring (e.g. `list-archives`,
+    // `info-backup`) doesn't short-circuit destructive borg ops via the
+    // safe rule.
     vec![
-        safe_pattern!("borg-list", r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+list\b"),
-        safe_pattern!("borg-info", r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+info\b"),
-        safe_pattern!("borg-diff", r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+diff\b"),
-        safe_pattern!("borg-check", r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+check\b"),
-        safe_pattern!("borg-create", r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+create\b"),
-        safe_pattern!("borg-extract", r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+extract\b"),
-        safe_pattern!("borg-mount", r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+mount\b"),
+        safe_pattern!(
+            "borg-list",
+            r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+list(?=\s|$)"
+        ),
+        safe_pattern!(
+            "borg-info",
+            r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+info(?=\s|$)"
+        ),
+        safe_pattern!(
+            "borg-diff",
+            r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+diff(?=\s|$)"
+        ),
+        safe_pattern!(
+            "borg-check",
+            r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+check(?=\s|$)"
+        ),
+        safe_pattern!(
+            "borg-create",
+            r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+create(?=\s|$)"
+        ),
+        safe_pattern!(
+            "borg-extract",
+            r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+extract(?=\s|$)"
+        ),
+        safe_pattern!(
+            "borg-mount",
+            r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+mount(?=\s|$)"
+        ),
     ]
 }
 

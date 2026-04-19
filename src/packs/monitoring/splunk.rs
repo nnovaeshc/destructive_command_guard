@@ -26,10 +26,13 @@ pub fn create_pack() -> Pack {
 }
 
 fn create_safe_patterns() -> Vec<SafePattern> {
+    // `(?=\s|$)` on each subcommand so an arg containing the subcommand
+    // keyword as a substring (e.g. `list-overrides`, `show-all-config`)
+    // doesn't make a destructive splunk command short-circuit as safe.
     vec![
-        safe_pattern!("splunk-list", r"splunk\b.*?\s+list\b"),
-        safe_pattern!("splunk-show", r"splunk\b.*?\s+show\b"),
-        safe_pattern!("splunk-search", r"splunk\b.*?\s+search\b"),
+        safe_pattern!("splunk-list", r"splunk\b.*?\s+list(?=\s|$)"),
+        safe_pattern!("splunk-show", r"splunk\b.*?\s+show(?=\s|$)"),
+        safe_pattern!("splunk-search", r"splunk\b.*?\s+search(?=\s|$)"),
     ]
 }
 

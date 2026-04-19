@@ -54,10 +54,11 @@ fn create_safe_patterns() -> Vec<SafePattern> {
 
 fn create_destructive_patterns() -> Vec<DestructivePattern> {
     vec![
-        // destroy
+        // destroy. Trailing `(?=\s|$)` so `terraform apply destroy-plan.tf`
+        // (a plan file literally named `destroy-plan.tf`) doesn't false-match.
         destructive_pattern!(
             "destroy",
-            r"terraform\b.*?\bdestroy\b",
+            r"terraform\b.*?\bdestroy(?=\s|$)",
             "terraform destroy removes ALL managed infrastructure. Use 'terraform plan -destroy' first.",
             Critical,
             "terraform destroy removes ALL managed infrastructure:\n\n\

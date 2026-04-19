@@ -48,10 +48,11 @@ fn create_safe_patterns() -> Vec<SafePattern> {
 
 fn create_destructive_patterns() -> Vec<DestructivePattern> {
     vec![
-        // destroy
+        // destroy. Trailing `(?=\s|$)` so `pulumi up destroy-plan.yaml`
+        // (a stack with "destroy" in its name) doesn't false-match.
         destructive_pattern!(
             "destroy",
-            r"pulumi\b.*?\bdestroy\b",
+            r"pulumi\b.*?\bdestroy(?=\s|$)",
             "pulumi destroy removes ALL managed infrastructure. Use 'pulumi preview --diff' first.",
             Critical,
             "pulumi destroy removes ALL managed infrastructure:\n\n\

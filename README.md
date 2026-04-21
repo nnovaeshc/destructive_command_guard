@@ -979,6 +979,52 @@ This workflow is useful for:
 - The pending exceptions file is readable only by the current user
 - Expired codes are automatically cleaned up
 
+### Rebase Recovery Mode
+
+AI coding agents routinely get stuck when `git pull --rebase` fails partway — unstaged-changes errors, stash-pop conflicts, interrupted rebases. The documented recovery path is almost always `git checkout -- .` or `git restore <paths>`, both of which dcg hard-blocks (`core.git:checkout-discard`, `core.git:restore-worktree`). Agents then have to stop and ask a human to run the command manually.
+
+Rebase-recovery mode is a narrow, bounded relaxation of those two rules that only fires under a genuine recovery signal. Outside that signal the default block is unchanged.
+
+**Two complementary signals unlock recovery:**
+
+1. **Active rebase state (automatic, zero-config).** When `.git/rebase-merge/` or `.git/rebase-apply/` exists, a rebase is in progress and the discard operations *are* the documented recovery path. dcg detects this state and converts the deny into an allow with a `[dcg] Allowing ... → rebase-recovery mode` note on stderr. No permit needed.
+
+2. **Explicit permit cookie (opt-in, short-lived).** When the rebase already finished but the worktree is still messy (e.g. after a bad `git stash pop`), run:
+
+   ```bash
+   dcg rebase-recover            # default ttl: 120s
+   dcg rebase-recover --ttl 60   # custom ttl (max: 600s)
+   ```
+
+   This writes a timestamp to `.dcg/rebase-recovery-permit` at the repo root. For the next N seconds (or until the first matching allow, whichever comes first), `git checkout -- <path>` and `git restore <paths>` are allowed. The permit is **single-shot** — one successful allow consumes it — so it can't silently unblock later unrelated commands within the TTL.
+
+**Scope and safety guarantees:**
+
+- Only four rules participate: `core.git:checkout-discard`, `core.git:checkout-ref-discard`, `core.git:restore-worktree`, `core.git:restore-worktree-explicit`.
+- **Nothing else is affected.** `git reset --hard`, `git clean -f`, `git push --force`, etc. stay blocked even during an active rebase or with a permit active.
+- The permit is scoped to the current repo's `.dcg/` directory. It does not cross repos.
+- Expired permits are auto-cleaned on the next check.
+
+**Typical recovery flow:**
+
+```bash
+$ git pull --rebase
+# ... fails with "unstaged changes" ...
+$ git stash
+$ git pull --rebase        # succeeds
+$ git stash pop            # leaves messy worktree
+$ git checkout -- .
+BLOCKED by dcg  (core.git:checkout-discard)
+  ... Recovering from a failed `git pull --rebase`?
+  ... Run `dcg rebase-recover` in this repo, then retry the command.
+$ dcg rebase-recover
+dcg rebase-recovery permit issued ...
+$ git checkout -- .        # now allowed, permit consumed
+$ git push
+```
+
+See issue [#104](https://github.com/Dicklesworthstone/destructive_command_guard/issues/104) for background.
+
 The `--version` output includes build metadata for debugging:
 
 ```

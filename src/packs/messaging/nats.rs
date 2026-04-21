@@ -44,15 +44,24 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             "nats-consumer-ls",
             r"nats(?:\s+--?\S+(?:\s+\S+)?)*\s+consumer\s+ls(?=\s|$)"
         ),
-        safe_pattern!("nats-kv-get", r"nats(?:\s+--?\S+(?:\s+\S+)?)*\s+kv\s+get(?=\s|$)"),
-        safe_pattern!("nats-kv-ls", r"nats(?:\s+--?\S+(?:\s+\S+)?)*\s+kv\s+ls(?=\s|$)"),
+        safe_pattern!(
+            "nats-kv-get",
+            r"nats(?:\s+--?\S+(?:\s+\S+)?)*\s+kv\s+get(?=\s|$)"
+        ),
+        safe_pattern!(
+            "nats-kv-ls",
+            r"nats(?:\s+--?\S+(?:\s+\S+)?)*\s+kv\s+ls(?=\s|$)"
+        ),
         safe_pattern!("nats-pub", r"nats(?:\s+--?\S+(?:\s+\S+)?)*\s+pub(?=\s|$)"),
         safe_pattern!("nats-sub", r"nats(?:\s+--?\S+(?:\s+\S+)?)*\s+sub(?=\s|$)"),
         safe_pattern!(
             "nats-server-info",
             r"nats(?:\s+--?\S+(?:\s+\S+)?)*\s+server\s+info(?=\s|$)"
         ),
-        safe_pattern!("nats-bench", r"nats(?:\s+--?\S+(?:\s+\S+)?)*\s+bench(?=\s|$)"),
+        safe_pattern!(
+            "nats-bench",
+            r"nats(?:\s+--?\S+(?:\s+\S+)?)*\s+bench(?=\s|$)"
+        ),
     ]
 }
 

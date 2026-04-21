@@ -30,7 +30,10 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+account\s+get(?=\s|$)"
         ),
         safe_pattern!("op-read", r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+read(?=\s|$)"),
-        safe_pattern!("op-item-get", r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+item\s+get(?=\s|$)"),
+        safe_pattern!(
+            "op-item-get",
+            r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+item\s+get(?=\s|$)"
+        ),
         safe_pattern!(
             "op-item-list",
             r"op(?:\s+--?\S+(?:\s+\S+)?)*\s+item\s+list(?=\s|$)"

@@ -127,7 +127,10 @@ fn create_safe_patterns() -> Vec<SafePattern> {
         ),
         // --- dmsetup safe patterns ---
         // dmsetup ls (list devices)
-        safe_pattern!("dmsetup-ls", r"dmsetup\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ls(?=\s|$)"),
+        safe_pattern!(
+            "dmsetup-ls",
+            r"dmsetup\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ls(?=\s|$)"
+        ),
         // dmsetup status (show status)
         safe_pattern!(
             "dmsetup-status",

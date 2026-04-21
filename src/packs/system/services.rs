@@ -43,7 +43,10 @@ fn create_safe_patterns() -> Vec<SafePattern> {
     // destructive ops via the safe pattern.
     vec![
         // status commands are safe
-        safe_pattern!("systemctl-status", r"systemctl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+status(?=\s|$)"),
+        safe_pattern!(
+            "systemctl-status",
+            r"systemctl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+status(?=\s|$)"
+        ),
         safe_pattern!("service-status", r"service\s+\S+\s+status(?=\s|$)"),
         // list commands are safe
         safe_pattern!(
@@ -51,16 +54,25 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             r"systemctl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+list-(?:units|unit-files|sockets|timers)(?=\s|$)"
         ),
         // show is safe
-        safe_pattern!("systemctl-show", r"systemctl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+show(?=\s|$)"),
+        safe_pattern!(
+            "systemctl-show",
+            r"systemctl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+show(?=\s|$)"
+        ),
         // is-active/is-enabled are safe
         safe_pattern!(
             "systemctl-is",
             r"systemctl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+is-(?:active|enabled|failed)(?=\s|$)"
         ),
         // daemon-reload is generally safe
-        safe_pattern!("systemctl-reload", r"systemctl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+daemon-reload(?=\s|$)"),
+        safe_pattern!(
+            "systemctl-reload",
+            r"systemctl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+daemon-reload(?=\s|$)"
+        ),
         // cat is safe (view unit file)
-        safe_pattern!("systemctl-cat", r"systemctl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+cat(?=\s|$)"),
+        safe_pattern!(
+            "systemctl-cat",
+            r"systemctl\b(?:\s+--?\S+(?:\s+\S+)?)*\s+cat(?=\s|$)"
+        ),
         // journalctl is safe (logs)
         safe_pattern!("journalctl", r"\bjournalctl\b"),
     ]

@@ -425,9 +425,15 @@ mod tests {
 
     #[test]
     fn recovery_reason_labels_are_informative() {
-        assert_eq!(RecoveryReason::RebaseInProgress.label(), "rebase in progress");
+        assert_eq!(
+            RecoveryReason::RebaseInProgress.label(),
+            "rebase in progress"
+        );
         let label = RecoveryReason::ActivePermit(45).label();
         assert!(label.contains("45"), "label must include seconds: {label}");
-        assert!(label.contains("permit"), "label must mention permit: {label}");
+        assert!(
+            label.contains("permit"),
+            "label must mention permit: {label}"
+        );
     }
 }

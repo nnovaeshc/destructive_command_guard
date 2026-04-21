@@ -22,7 +22,6 @@ use rust_mcp_sdk::schema::{
 use rust_mcp_sdk::{McpServer, StdioTransport, TransportOptions};
 use serde::Serialize;
 use serde_json::{Map, Value};
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -122,7 +121,7 @@ impl DcgMcpServer {
         required: &[&str],
         props: Vec<(&str, Map<String, Value>)>,
     ) -> ToolInputSchema {
-        let mut properties = HashMap::new();
+        let mut properties = std::collections::BTreeMap::new();
         for (name, schema) in props {
             properties.insert(name.to_string(), schema);
         }
@@ -381,6 +380,7 @@ pub async fn run_mcp_server_async() -> Result<(), Box<dyn std::error::Error>> {
         server_details,
         task_store: None,
         client_task_store: None,
+        message_observer: None,
     });
     server.start().await?;
     Ok(())

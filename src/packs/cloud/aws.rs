@@ -65,24 +65,12 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             "aws-describe",
             r"aws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+\S+\s+describe-"
         ),
-        safe_pattern!(
-            "aws-list",
-            r"aws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+\S+\s+list-"
-        ),
-        safe_pattern!(
-            "aws-get",
-            r"aws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+\S+\s+get-"
-        ),
+        safe_pattern!("aws-list", r"aws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+\S+\s+list-"),
+        safe_pattern!("aws-get", r"aws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+\S+\s+get-"),
         // s3 ls is safe
-        safe_pattern!(
-            "s3-ls",
-            r"aws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+s3\s+ls(?=\s|$)"
-        ),
+        safe_pattern!("s3-ls", r"aws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+s3\s+ls(?=\s|$)"),
         // s3 cp is generally safe (copy)
-        safe_pattern!(
-            "s3-cp",
-            r"aws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+s3\s+cp(?=\s|$)"
-        ),
+        safe_pattern!("s3-cp", r"aws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+s3\s+cp(?=\s|$)"),
         // dry-run flag
         safe_pattern!("aws-dry-run", r"aws\b.*--dry-run"),
         // sts get-caller-identity is safe
@@ -100,7 +88,6 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             "ecr-login",
             r"aws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ecr\s+get-login"
         ),
-
         // --- Athena start-query-execution: non-destructive query shapes ---
         //
         // Each pattern anchors the safe SQL verb directly on the opening
@@ -409,7 +396,6 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
              aws logs get-log-events --log-group-name xxx \\\n    \
              --log-stream-name yyy --limit 100"
         ),
-
         // ---- Security- and data-critical services uncovered by the
         //       previous set of AWS rules. ----------------------------------
         destructive_pattern!(
@@ -524,7 +510,6 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
              Preview the keys about to be deleted:\n  \
              aws s3api list-objects-v2 --bucket xxx --prefix yyy/"
         ),
-
         // ---- Athena catalog / workgroup deletions ---------------------------
         //
         // Every Athena + Glue pattern below uses `aws\b.*?\b<svc>\b` in
@@ -572,7 +557,6 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
              Retrieve the query before deleting:\n  \
              aws athena get-named-query --named-query-id xxx"
         ),
-
         // ---- Athena destructive query strings -------------------------------
         // These intentionally run *after* the safe patterns above, so a
         // SELECT / SHOW / CREATE / INSERT / UPDATE…SET / DELETE…WHERE
@@ -680,7 +664,6 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
              Rewrite with a WHERE clause that scopes the deletion:\n  \
              DELETE FROM db.table WHERE <predicate>"
         ),
-
         // ---- Glue catalog deletions -----------------------------------------
         destructive_pattern!(
             "glue-delete-database",
@@ -790,27 +773,15 @@ mod tests {
         // form was broken: `\S+` greedy-ate `--profile`, then
         // `\s+describe-` tripped on the flag value.
         let pack = create_pack();
-        assert_allows(
-            &pack,
-            "aws --profile prod ec2 describe-instances",
-        );
+        assert_allows(&pack, "aws --profile prod ec2 describe-instances");
         assert_allows(
             &pack,
             "aws --region us-east-1 --profile prod ec2 describe-volumes",
         );
-        assert_allows(
-            &pack,
-            "aws --profile prod s3api list-buckets",
-        );
-        assert_allows(
-            &pack,
-            "aws --profile prod iam get-user",
-        );
+        assert_allows(&pack, "aws --profile prod s3api list-buckets");
+        assert_allows(&pack, "aws --profile prod iam get-user");
         // And a read-only command through a wrapper is also fine:
-        assert_allows(
-            &pack,
-            "aws-vault exec prod -- aws ec2 describe-instances",
-        );
+        assert_allows(&pack, "aws-vault exec prod -- aws ec2 describe-instances");
     }
 
     #[test]
@@ -1041,11 +1012,7 @@ mod tests {
             "delete-bucket",
         );
         // s3 rb
-        assert_blocks(
-            &pack,
-            "aws --profile prod s3 rb s3://prod-bucket",
-            "s3 rb",
-        );
+        assert_blocks(&pack, "aws --profile prod s3 rb s3://prod-bucket", "s3 rb");
     }
 
     #[test]

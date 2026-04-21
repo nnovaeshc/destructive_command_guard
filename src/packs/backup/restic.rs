@@ -33,10 +33,22 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             r"restic(?:\s+--?\S+(?:\s+\S+)?)*\s+snapshots(?=\s|$)"
         ),
         safe_pattern!("restic-ls", r"restic(?:\s+--?\S+(?:\s+\S+)?)*\s+ls(?=\s|$)"),
-        safe_pattern!("restic-stats", r"restic(?:\s+--?\S+(?:\s+\S+)?)*\s+stats(?=\s|$)"),
-        safe_pattern!("restic-check", r"restic(?:\s+--?\S+(?:\s+\S+)?)*\s+check(?=\s|$)"),
-        safe_pattern!("restic-diff", r"restic(?:\s+--?\S+(?:\s+\S+)?)*\s+diff(?=\s|$)"),
-        safe_pattern!("restic-find", r"restic(?:\s+--?\S+(?:\s+\S+)?)*\s+find(?=\s|$)"),
+        safe_pattern!(
+            "restic-stats",
+            r"restic(?:\s+--?\S+(?:\s+\S+)?)*\s+stats(?=\s|$)"
+        ),
+        safe_pattern!(
+            "restic-check",
+            r"restic(?:\s+--?\S+(?:\s+\S+)?)*\s+check(?=\s|$)"
+        ),
+        safe_pattern!(
+            "restic-diff",
+            r"restic(?:\s+--?\S+(?:\s+\S+)?)*\s+diff(?=\s|$)"
+        ),
+        safe_pattern!(
+            "restic-find",
+            r"restic(?:\s+--?\S+(?:\s+\S+)?)*\s+find(?=\s|$)"
+        ),
         safe_pattern!(
             "restic-backup",
             r"restic(?:\s+--?\S+(?:\s+\S+)?)*\s+backup(?=\s|$)"

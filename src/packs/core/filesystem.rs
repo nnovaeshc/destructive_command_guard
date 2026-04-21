@@ -763,21 +763,9 @@ mod tests {
         assert_blocks_with_severity(&pack, "rm -r -f ~/", Severity::Critical);
         assert_blocks_with_pattern(&pack, "rm -r -f /", "rm-r-f-separate-root-home");
 
-        assert_blocks_with_severity(
-            &pack,
-            "rm --recursive --force /",
-            Severity::Critical,
-        );
-        assert_blocks_with_severity(
-            &pack,
-            "rm --force --recursive /",
-            Severity::Critical,
-        );
-        assert_blocks_with_severity(
-            &pack,
-            "rm --recursive --force /etc",
-            Severity::Critical,
-        );
+        assert_blocks_with_severity(&pack, "rm --recursive --force /", Severity::Critical);
+        assert_blocks_with_severity(&pack, "rm --force --recursive /", Severity::Critical);
+        assert_blocks_with_severity(&pack, "rm --recursive --force /etc", Severity::Critical);
         assert_blocks_with_pattern(
             &pack,
             "rm --recursive --force /",
@@ -786,31 +774,19 @@ mod tests {
 
         // Quoted forms too
         assert_blocks_with_severity(&pack, "rm -r -f \"/\"", Severity::Critical);
-        assert_blocks_with_severity(
-            &pack,
-            "rm --recursive --force '/'",
-            Severity::Critical,
-        );
+        assert_blocks_with_severity(&pack, "rm --recursive --force '/'", Severity::Critical);
         // Backslash-escaped root: shell unescapes \/ to / and \~ to ~.
         assert_blocks_with_severity(&pack, "rm -rf \\/", Severity::Critical);
         assert_blocks_with_severity(&pack, "rm -rf \\~", Severity::Critical);
         assert_blocks_with_severity(&pack, "rm -r -f \\/", Severity::Critical);
-        assert_blocks_with_severity(
-            &pack,
-            "rm --recursive --force \\/",
-            Severity::Critical,
-        );
+        assert_blocks_with_severity(&pack, "rm --recursive --force \\/", Severity::Critical);
         // $HOME variants: shell expands to the user's home directory.
         assert_blocks_with_severity(&pack, "rm -rf $HOME", Severity::Critical);
         assert_blocks_with_severity(&pack, "rm -rf \"$HOME\"", Severity::Critical);
         assert_blocks_with_severity(&pack, "rm -rf ${HOME}", Severity::Critical);
         assert_blocks_with_severity(&pack, "rm -rf \"${HOME}\"", Severity::Critical);
         assert_blocks_with_severity(&pack, "rm -r -f $HOME", Severity::Critical);
-        assert_blocks_with_severity(
-            &pack,
-            "rm --recursive --force $HOME",
-            Severity::Critical,
-        );
+        assert_blocks_with_severity(&pack, "rm --recursive --force $HOME", Severity::Critical);
 
         // Non-root targets retain their existing (High) severity, so we don't
         // accidentally upgrade innocuous cleanup commands.

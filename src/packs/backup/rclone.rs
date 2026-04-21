@@ -34,10 +34,7 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             "rclone-copy",
             r"rclone(?:\s+--?\S+(?:\s+\S+)?)*\s+copy(?=\s|$)"
         ),
-        safe_pattern!(
-            "rclone-ls",
-            r"rclone(?:\s+--?\S+(?:\s+\S+)?)*\s+ls(?=\s|$)"
-        ),
+        safe_pattern!("rclone-ls", r"rclone(?:\s+--?\S+(?:\s+\S+)?)*\s+ls(?=\s|$)"),
         safe_pattern!(
             "rclone-lsd",
             r"rclone(?:\s+--?\S+(?:\s+\S+)?)*\s+lsd(?=\s|$)"

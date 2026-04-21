@@ -26,27 +26,75 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // ldcli - list/get operations
-        safe_pattern!("ldcli-flags-list", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+flags\s+list(?=\s|$)"),
-        safe_pattern!("ldcli-flags-get", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+flags\s+get(?=\s|$)"),
-        safe_pattern!("ldcli-flags-create", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+flags\s+create(?=\s|$)"),
-        safe_pattern!("ldcli-flags-update", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+flags\s+update(?=\s|$)"),
-        safe_pattern!("ldcli-projects-list", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+projects\s+list(?=\s|$)"),
-        safe_pattern!("ldcli-projects-get", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+projects\s+get(?=\s|$)"),
-        safe_pattern!("ldcli-projects-create", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+projects\s+create(?=\s|$)"),
-        safe_pattern!("ldcli-environments-list", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+environments\s+list(?=\s|$)"),
-        safe_pattern!("ldcli-environments-get", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+environments\s+get(?=\s|$)"),
+        safe_pattern!(
+            "ldcli-flags-list",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+flags\s+list(?=\s|$)"
+        ),
+        safe_pattern!(
+            "ldcli-flags-get",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+flags\s+get(?=\s|$)"
+        ),
+        safe_pattern!(
+            "ldcli-flags-create",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+flags\s+create(?=\s|$)"
+        ),
+        safe_pattern!(
+            "ldcli-flags-update",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+flags\s+update(?=\s|$)"
+        ),
+        safe_pattern!(
+            "ldcli-projects-list",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+projects\s+list(?=\s|$)"
+        ),
+        safe_pattern!(
+            "ldcli-projects-get",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+projects\s+get(?=\s|$)"
+        ),
+        safe_pattern!(
+            "ldcli-projects-create",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+projects\s+create(?=\s|$)"
+        ),
+        safe_pattern!(
+            "ldcli-environments-list",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+environments\s+list(?=\s|$)"
+        ),
+        safe_pattern!(
+            "ldcli-environments-get",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+environments\s+get(?=\s|$)"
+        ),
         safe_pattern!(
             "ldcli-environments-create",
             r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+environments\s+create(?=\s|$)"
         ),
-        safe_pattern!("ldcli-segments-list", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+segments\s+list(?=\s|$)"),
-        safe_pattern!("ldcli-segments-get", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+segments\s+get(?=\s|$)"),
-        safe_pattern!("ldcli-segments-create", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+segments\s+create(?=\s|$)"),
-        safe_pattern!("ldcli-metrics-list", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+metrics\s+list(?=\s|$)"),
-        safe_pattern!("ldcli-metrics-get", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+metrics\s+get(?=\s|$)"),
+        safe_pattern!(
+            "ldcli-segments-list",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+segments\s+list(?=\s|$)"
+        ),
+        safe_pattern!(
+            "ldcli-segments-get",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+segments\s+get(?=\s|$)"
+        ),
+        safe_pattern!(
+            "ldcli-segments-create",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+segments\s+create(?=\s|$)"
+        ),
+        safe_pattern!(
+            "ldcli-metrics-list",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+metrics\s+list(?=\s|$)"
+        ),
+        safe_pattern!(
+            "ldcli-metrics-get",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+metrics\s+get(?=\s|$)"
+        ),
         // Help and version commands
-        safe_pattern!("ldcli-help", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--help|-h|help)(?=\s|$)"),
-        safe_pattern!("ldcli-version", r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--version|version)(?=\s|$)"),
+        safe_pattern!(
+            "ldcli-help",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--help|-h|help)(?=\s|$)"
+        ),
+        safe_pattern!(
+            "ldcli-version",
+            r"ldcli(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--version|version)(?=\s|$)"
+        ),
         // API - GET requests
         safe_pattern!(
             "launchdarkly-api-get",

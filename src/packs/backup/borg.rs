@@ -31,18 +31,9 @@ fn create_safe_patterns() -> Vec<SafePattern> {
     // `info-backup`) doesn't short-circuit destructive borg ops via the
     // safe rule.
     vec![
-        safe_pattern!(
-            "borg-list",
-            r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+list(?=\s|$)"
-        ),
-        safe_pattern!(
-            "borg-info",
-            r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+info(?=\s|$)"
-        ),
-        safe_pattern!(
-            "borg-diff",
-            r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+diff(?=\s|$)"
-        ),
+        safe_pattern!("borg-list", r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+list(?=\s|$)"),
+        safe_pattern!("borg-info", r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+info(?=\s|$)"),
+        safe_pattern!("borg-diff", r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+diff(?=\s|$)"),
         safe_pattern!(
             "borg-check",
             r"borg(?:\s+--?\S+(?:\s+\S+)?)*\s+check(?=\s|$)"

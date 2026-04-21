@@ -169,21 +169,9 @@ mod tests {
             "git -C /repo filter-branch --tree-filter 'rm -f secret' HEAD",
             "filter-branch",
         );
-        assert_blocks(
-            &pack,
-            "git -C ./submodule worktree remove dead",
-            "worktree",
-        );
-        assert_blocks(
-            &pack,
-            "git -C /prod add .",
-            "stages everything",
-        );
-        assert_blocks(
-            &pack,
-            "git -C /prod add -A",
-            "stages all changes",
-        );
+        assert_blocks(&pack, "git -C ./submodule worktree remove dead", "worktree");
+        assert_blocks(&pack, "git -C /prod add .", "stages everything");
+        assert_blocks(&pack, "git -C /prod add -A", "stages all changes");
     }
 
     #[test]

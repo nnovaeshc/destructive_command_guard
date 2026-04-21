@@ -580,7 +580,8 @@ mod tests {
         // --force-with-lease (safer) must NOT trigger push-force-short.
         // (push-force-long's negative lookahead already excludes it.)
         assert!(
-            pack.check("git push --force-with-lease origin main").is_none(),
+            pack.check("git push --force-with-lease origin main")
+                .is_none(),
             "--force-with-lease is the safer alternative and must not be blocked"
         );
     }
@@ -634,7 +635,11 @@ mod tests {
         //   -vD   (verbose + force-delete)
         //   -fv   (force + verbose)
         //   -vdf  (verbose + delete + force)
-        assert_blocks_with_pattern(&pack, "git branch -Dr origin/feature", "branch-force-delete");
+        assert_blocks_with_pattern(
+            &pack,
+            "git branch -Dr origin/feature",
+            "branch-force-delete",
+        );
         assert_blocks_with_pattern(&pack, "git branch -vD feature", "branch-force-delete");
         assert_blocks_with_pattern(&pack, "git branch -fv feature", "branch-force-delete");
         assert_blocks_with_pattern(&pack, "git branch -vdf feature", "branch-force-delete");

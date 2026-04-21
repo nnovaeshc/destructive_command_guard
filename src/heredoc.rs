@@ -1870,20 +1870,14 @@ fn parse_heredoc_delimiter(after_op: &str) -> Option<(String, usize, HeredocType
     // Handle quoted delimiters
     let (delimiter, delim_len) = if let Some(stripped) = delim_chars.strip_prefix('"') {
         // Find closing quote
-        if let Some(end) = stripped.find('"') {
-            let (body, _) = stripped.split_at(end);
-            (body.to_string(), end + 2)
-        } else {
-            return None;
-        }
+        let end = stripped.find('"')?;
+        let (body, _) = stripped.split_at(end);
+        (body.to_string(), end + 2)
     } else if let Some(stripped) = delim_chars.strip_prefix('\'') {
         // Find closing quote
-        if let Some(end) = stripped.find('\'') {
-            let (body, _) = stripped.split_at(end);
-            (body.to_string(), end + 2)
-        } else {
-            return None;
-        }
+        let end = stripped.find('\'')?;
+        let (body, _) = stripped.split_at(end);
+        (body.to_string(), end + 2)
     } else {
         // Unquoted - extract word
         let end = delim_chars

@@ -273,46 +273,115 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // -- Database read-only operations --
-        safe_pattern!("supabase-db-diff", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+db\s+diff"),
-        safe_pattern!("supabase-db-lint", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+db\s+lint"),
-        safe_pattern!("supabase-db-dump", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+db\s+dump"),
-        safe_pattern!("supabase-db-shell-safe", r"(?i)supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+db\s+shell\s*$"),
-        safe_pattern!("supabase-inspect-db", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+inspect\s+db"),
+        safe_pattern!(
+            "supabase-db-diff",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+db\s+diff"
+        ),
+        safe_pattern!(
+            "supabase-db-lint",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+db\s+lint"
+        ),
+        safe_pattern!(
+            "supabase-db-dump",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+db\s+dump"
+        ),
+        safe_pattern!(
+            "supabase-db-shell-safe",
+            r"(?i)supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+db\s+shell\s*$"
+        ),
+        safe_pattern!(
+            "supabase-inspect-db",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+inspect\s+db"
+        ),
         // -- Status & info --
-        safe_pattern!("supabase-status", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+status"),
-        safe_pattern!("supabase-start", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+start"),
-        safe_pattern!("supabase-services", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+services"),
-        safe_pattern!("supabase-gen-types", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+gen\s+types"),
-        safe_pattern!("supabase-test-db", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+test\s+db"),
+        safe_pattern!(
+            "supabase-status",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+status"
+        ),
+        safe_pattern!(
+            "supabase-start",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+start"
+        ),
+        safe_pattern!(
+            "supabase-services",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+services"
+        ),
+        safe_pattern!(
+            "supabase-gen-types",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+gen\s+types"
+        ),
+        safe_pattern!(
+            "supabase-test-db",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+test\s+db"
+        ),
         // -- Migrations read-only --
-        safe_pattern!("supabase-migration-list", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+migration\s+list"),
-        safe_pattern!("supabase-migration-new", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+migration\s+new"),
-        safe_pattern!("supabase-migration-fetch", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+migration\s+fetch"),
+        safe_pattern!(
+            "supabase-migration-list",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+migration\s+list"
+        ),
+        safe_pattern!(
+            "supabase-migration-new",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+migration\s+new"
+        ),
+        safe_pattern!(
+            "supabase-migration-fetch",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+migration\s+fetch"
+        ),
         // supabase db push --dry-run (anywhere in args) is safe
         safe_pattern!(
             "supabase-db-push-dry-run",
             r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+db\s+push\b.*--dry-run"
         ),
         // -- Functions read-only --
-        safe_pattern!("supabase-functions-list", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+functions\s+list"),
-        safe_pattern!("supabase-functions-serve", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+functions\s+serve"),
+        safe_pattern!(
+            "supabase-functions-list",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+functions\s+list"
+        ),
+        safe_pattern!(
+            "supabase-functions-serve",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+functions\s+serve"
+        ),
         safe_pattern!(
             "supabase-functions-download",
             r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+functions\s+download"
         ),
-        safe_pattern!("supabase-functions-new", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+functions\s+new"),
+        safe_pattern!(
+            "supabase-functions-new",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+functions\s+new"
+        ),
         // -- Secrets read-only --
-        safe_pattern!("supabase-secrets-list", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+secrets\s+list"),
+        safe_pattern!(
+            "supabase-secrets-list",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+secrets\s+list"
+        ),
         // -- Storage read-only --
-        safe_pattern!("supabase-storage-ls", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+storage\s+ls"),
+        safe_pattern!(
+            "supabase-storage-ls",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+storage\s+ls"
+        ),
         // -- Projects/Orgs read-only --
-        safe_pattern!("supabase-projects-list", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+projects\s+list"),
-        safe_pattern!("supabase-orgs-list", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+orgs\s+list"),
+        safe_pattern!(
+            "supabase-projects-list",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+projects\s+list"
+        ),
+        safe_pattern!(
+            "supabase-orgs-list",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+orgs\s+list"
+        ),
         // -- Branches read-only --
-        safe_pattern!("supabase-branches-list", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+branches\s+list"),
-        safe_pattern!("supabase-branches-get", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+branches\s+get"),
+        safe_pattern!(
+            "supabase-branches-list",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+branches\s+list"
+        ),
+        safe_pattern!(
+            "supabase-branches-get",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+branches\s+get"
+        ),
         // -- Domains read-only --
-        safe_pattern!("supabase-domains-get", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+domains\s+get"),
+        safe_pattern!(
+            "supabase-domains-get",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+domains\s+get"
+        ),
         safe_pattern!(
             "supabase-domains-reverify",
             r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+domains\s+reverify"
@@ -326,9 +395,18 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+vanity-subdomains\s+check-availability"
         ),
         // -- SSO read-only --
-        safe_pattern!("supabase-sso-list", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+sso\s+list"),
-        safe_pattern!("supabase-sso-show", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+sso\s+show"),
-        safe_pattern!("supabase-sso-info", r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+sso\s+info"),
+        safe_pattern!(
+            "supabase-sso-list",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+sso\s+list"
+        ),
+        safe_pattern!(
+            "supabase-sso-show",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+sso\s+show"
+        ),
+        safe_pattern!(
+            "supabase-sso-info",
+            r"supabase(?:\s+--?\S+(?:\s+\S+)?)*\s+sso\s+info"
+        ),
         // -- Network/SSL read-only --
         safe_pattern!(
             "supabase-network-restrictions-get",
@@ -1043,16 +1121,8 @@ mod tests {
         // supabase CLI accepts --debug, --workdir, --experimental, --project-ref.
         // Old `supabase\s+db\s+reset` would fail when a flag came first.
         let pack = create_pack();
-        assert_blocks(
-            &pack,
-            "supabase --project-ref abc123 db reset",
-            "db reset",
-        );
-        assert_blocks(
-            &pack,
-            "supabase --debug --workdir . db push",
-            "db push",
-        );
+        assert_blocks(&pack, "supabase --project-ref abc123 db reset", "db reset");
+        assert_blocks(&pack, "supabase --debug --workdir . db push", "db push");
         assert_blocks(
             &pack,
             "supabase --project-ref abc123 functions delete my-fn",

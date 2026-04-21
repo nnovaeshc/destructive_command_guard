@@ -3859,7 +3859,7 @@ fn test_command(
             }
             TestFormat::Toon => {
                 let json = serde_json::to_value(&output).expect("TestOutput should serialize");
-                let encoded = toon_rust::encode(&json, None).expect("TOON encoding should succeed");
+                let encoded = toon::encode(json, None);
                 println!("{encoded}");
             }
             TestFormat::Pretty => unreachable!("handled above"),
@@ -11049,8 +11049,7 @@ fn handle_rebase_recover(
         DEFAULT_PERMIT_TTL_SECS, MAX_PERMIT_TTL_SECS, is_rebase_in_progress, set_permit,
     };
 
-    let cwd = std::env::current_dir()
-        .map_err(|e| format!("Cannot read current directory: {e}"))?;
+    let cwd = std::env::current_dir().map_err(|e| format!("Cannot read current directory: {e}"))?;
     let ttl_secs = ttl.unwrap_or(DEFAULT_PERMIT_TTL_SECS);
     if ttl_secs == 0 {
         return Err("ttl must be at least 1 second".into());
@@ -11068,7 +11067,10 @@ fn handle_rebase_recover(
         };
         println!(
             r#"{{"status":"{status}","permit_path":"{}","ttl_secs":{effective_ttl},"rebase_in_progress":{rebase_active}}}"#,
-            path.display().to_string().replace('\\', "\\\\").replace('"', "\\\"")
+            path.display()
+                .to_string()
+                .replace('\\', "\\\\")
+                .replace('"', "\\\"")
         );
         return Ok(());
     }
@@ -15102,9 +15104,27 @@ exclude = ["target/**"]
         };
 
         let json = serde_json::to_value(&payload).expect("serialize payload to json");
-        let toon = toon_rust::encode(&json, None).expect("encode TOON payload");
-        let decoded = toon_rust::decode(&toon, None).expect("decode TOON payload");
-        assert_eq!(decoded, json);
+        let toon_encoded = toon::encode(json.clone(), None);
+        let decoded: serde_json::Value = toon::try_decode(&toon_encoded, None)
+            .expect("decode TOON payload")
+            .into();
+        // tru normalizes integers to f64 in roundtrip; compare canonically.
+        fn canon(v: &serde_json::Value) -> serde_json::Value {
+            match v {
+                serde_json::Value::Number(n) => n
+                    .as_f64()
+                    .and_then(serde_json::Number::from_f64)
+                    .map_or(serde_json::Value::Null, serde_json::Value::Number),
+                serde_json::Value::Array(a) => {
+                    serde_json::Value::Array(a.iter().map(canon).collect())
+                }
+                serde_json::Value::Object(o) => serde_json::Value::Object(
+                    o.iter().map(|(k, v)| (k.clone(), canon(v))).collect(),
+                ),
+                other => other.clone(),
+            }
+        }
+        assert_eq!(canon(&decoded), canon(&json));
     }
 
     // ========================================================================

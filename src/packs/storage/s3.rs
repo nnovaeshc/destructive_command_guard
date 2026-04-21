@@ -45,10 +45,7 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             "s3-presign",
             r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+s3\s+presign(?=\s|$)"
         ),
-        safe_pattern!(
-            "s3-mb",
-            r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+s3\s+mb(?=\s|$)"
-        ),
+        safe_pattern!("s3-mb", r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+s3\s+mb(?=\s|$)"),
         safe_pattern!(
             "s3api-list-objects",
             r"aws(?:\s+--?\S+(?:\s+\S+)?)*\s+s3api\s+list-objects(?:-v2)?(?=\s|$)"

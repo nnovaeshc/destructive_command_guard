@@ -18,22 +18,11 @@ pub fn create_pack() -> Pack {
         description: "Protects against destructive Azure CLI operations like vm delete, \
                       storage account delete, and resource group delete",
         keywords: &[
-            "az",
-            "delete",
-            "vm",
-            "storage",
-            "acr",
-            "registry",
+            "az", "delete", "vm", "storage", "acr", "registry",
             // Extra service keywords so newly-added rules reliably
             // select this pack even when `az` isn't the first keyword
             // in the command's token list.
-            "keyvault",
-            "role",
-            "ad",
-            "dns",
-            "cosmosdb",
-            "monitor",
-            "purge",
+            "keyvault", "role", "ad", "dns", "cosmosdb", "monitor", "purge",
         ],
         safe_patterns: create_safe_patterns(),
         destructive_patterns: create_destructive_patterns(),
@@ -67,13 +56,22 @@ fn create_safe_patterns() -> Vec<SafePattern> {
         // a safe-first match on a flag value would BYPASS the
         // destructive check. Same care is taken on every similar
         // `az`/`gcloud` safe pattern below.
-        safe_pattern!("az-account", r"az\b(?:\s+--?\S+(?:\s+\S+)?)*\s+account(?=\s|$)"),
+        safe_pattern!(
+            "az-account",
+            r"az\b(?:\s+--?\S+(?:\s+\S+)?)*\s+account(?=\s|$)"
+        ),
         // az configure is safe
-        safe_pattern!("az-configure", r"az\b(?:\s+--?\S+(?:\s+\S+)?)*\s+configure(?=\s|$)"),
+        safe_pattern!(
+            "az-configure",
+            r"az\b(?:\s+--?\S+(?:\s+\S+)?)*\s+configure(?=\s|$)"
+        ),
         // az login is safe
         safe_pattern!("az-login", r"az\b(?:\s+--?\S+(?:\s+\S+)?)*\s+login(?=\s|$)"),
         // az version is safe
-        safe_pattern!("az-version", r"az\b(?:\s+--?\S+(?:\s+\S+)?)*\s+version(?=\s|$)"),
+        safe_pattern!(
+            "az-version",
+            r"az\b(?:\s+--?\S+(?:\s+\S+)?)*\s+version(?=\s|$)"
+        ),
         // az --help is safe
         safe_pattern!("az-help", r"az\b.*--help"),
         // what-if is safe (preview)
@@ -260,7 +258,6 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
              - Untagged images may be garbage collected\n\n\
              Lower risk: manifests can be re-tagged if digest known."
         ),
-
         // ---- Security- and data-critical Azure services --------------------
         destructive_pattern!(
             "keyvault-item-delete-or-purge",

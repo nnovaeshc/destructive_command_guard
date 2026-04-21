@@ -26,26 +26,80 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // flipt CLI - list/get operations
-        safe_pattern!("flipt-flag-list", r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+flag\s+list(?=\s|$)"),
-        safe_pattern!("flipt-flag-get", r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+flag\s+get(?=\s|$)"),
-        safe_pattern!("flipt-flag-create", r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+flag\s+create(?=\s|$)"),
-        safe_pattern!("flipt-flag-update", r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+flag\s+update(?=\s|$)"),
-        safe_pattern!("flipt-segment-list", r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+segment\s+list(?=\s|$)"),
-        safe_pattern!("flipt-segment-get", r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+segment\s+get(?=\s|$)"),
-        safe_pattern!("flipt-segment-create", r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+segment\s+create(?=\s|$)"),
-        safe_pattern!("flipt-namespace-list", r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+namespace\s+list(?=\s|$)"),
-        safe_pattern!("flipt-namespace-get", r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+namespace\s+get(?=\s|$)"),
-        safe_pattern!("flipt-namespace-create", r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+namespace\s+create(?=\s|$)"),
-        safe_pattern!("flipt-rule-list", r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+rule\s+list(?=\s|$)"),
-        safe_pattern!("flipt-rule-get", r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+rule\s+get(?=\s|$)"),
-        safe_pattern!("flipt-rule-create", r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+rule\s+create(?=\s|$)"),
-        safe_pattern!("flipt-evaluate", r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+evaluate(?=\s|$)"),
+        safe_pattern!(
+            "flipt-flag-list",
+            r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+flag\s+list(?=\s|$)"
+        ),
+        safe_pattern!(
+            "flipt-flag-get",
+            r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+flag\s+get(?=\s|$)"
+        ),
+        safe_pattern!(
+            "flipt-flag-create",
+            r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+flag\s+create(?=\s|$)"
+        ),
+        safe_pattern!(
+            "flipt-flag-update",
+            r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+flag\s+update(?=\s|$)"
+        ),
+        safe_pattern!(
+            "flipt-segment-list",
+            r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+segment\s+list(?=\s|$)"
+        ),
+        safe_pattern!(
+            "flipt-segment-get",
+            r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+segment\s+get(?=\s|$)"
+        ),
+        safe_pattern!(
+            "flipt-segment-create",
+            r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+segment\s+create(?=\s|$)"
+        ),
+        safe_pattern!(
+            "flipt-namespace-list",
+            r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+namespace\s+list(?=\s|$)"
+        ),
+        safe_pattern!(
+            "flipt-namespace-get",
+            r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+namespace\s+get(?=\s|$)"
+        ),
+        safe_pattern!(
+            "flipt-namespace-create",
+            r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+namespace\s+create(?=\s|$)"
+        ),
+        safe_pattern!(
+            "flipt-rule-list",
+            r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+rule\s+list(?=\s|$)"
+        ),
+        safe_pattern!(
+            "flipt-rule-get",
+            r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+rule\s+get(?=\s|$)"
+        ),
+        safe_pattern!(
+            "flipt-rule-create",
+            r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+rule\s+create(?=\s|$)"
+        ),
+        safe_pattern!(
+            "flipt-evaluate",
+            r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+evaluate(?=\s|$)"
+        ),
         // Help and version commands
-        safe_pattern!("flipt-help", r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--help|-h|help)(?=\s|$)"),
-        safe_pattern!("flipt-version", r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--version|version)(?=\s|$)"),
+        safe_pattern!(
+            "flipt-help",
+            r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--help|-h|help)(?=\s|$)"
+        ),
+        safe_pattern!(
+            "flipt-version",
+            r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--version|version)(?=\s|$)"
+        ),
         // Server commands (safe)
-        safe_pattern!("flipt-server", r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:server|serve)(?=\s|$)"),
-        safe_pattern!("flipt-config", r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+config(?=\s|$)"),
+        safe_pattern!(
+            "flipt-server",
+            r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:server|serve)(?=\s|$)"
+        ),
+        safe_pattern!(
+            "flipt-config",
+            r"flipt(?:\s+--?\S+(?:\s+\S+)?)*\s+config(?=\s|$)"
+        ),
     ]
 }
 

@@ -50,9 +50,18 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             "apigateway-get-resource",
             r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-resource(?=\s|$)"
         ),
-        safe_pattern!("apigateway-get-method", r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-method(?=\s|$)"),
-        safe_pattern!("apigateway-get-stages", r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-stages(?=\s|$)"),
-        safe_pattern!("apigateway-get-stage", r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-stage(?=\s|$)"),
+        safe_pattern!(
+            "apigateway-get-method",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-method(?=\s|$)"
+        ),
+        safe_pattern!(
+            "apigateway-get-stages",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-stages(?=\s|$)"
+        ),
+        safe_pattern!(
+            "apigateway-get-stage",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-stage(?=\s|$)"
+        ),
         safe_pattern!(
             "apigateway-get-deployments",
             r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-deployments(?=\s|$)"
@@ -73,7 +82,10 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             "apigateway-get-authorizers",
             r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-authorizers(?=\s|$)"
         ),
-        safe_pattern!("apigateway-get-models", r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-models(?=\s|$)"),
+        safe_pattern!(
+            "apigateway-get-models",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-models(?=\s|$)"
+        ),
         safe_pattern!(
             "apigateway-get-usage-plans",
             r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-usage-plans(?=\s|$)"
@@ -83,8 +95,14 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+get-domain-names(?=\s|$)"
         ),
         // HTTP API (APIGatewayV2) - read operations
-        safe_pattern!("apigatewayv2-get-apis", r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+get-apis(?=\s|$)"),
-        safe_pattern!("apigatewayv2-get-api", r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+get-api(?=\s|$)"),
+        safe_pattern!(
+            "apigatewayv2-get-apis",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+get-apis(?=\s|$)"
+        ),
+        safe_pattern!(
+            "apigatewayv2-get-api",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+get-api(?=\s|$)"
+        ),
         safe_pattern!(
             "apigatewayv2-get-routes",
             r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+get-routes(?=\s|$)"
@@ -118,7 +136,10 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+get-domain-names(?=\s|$)"
         ),
         // General AWS help
-        safe_pattern!("apigateway-help", r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+(?:help|\-\-help)(?=\s|$)"),
+        safe_pattern!(
+            "apigateway-help",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigateway\s+(?:help|\-\-help)(?=\s|$)"
+        ),
         safe_pattern!(
             "apigatewayv2-help",
             r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+apigatewayv2\s+(?:help|\-\-help)(?=\s|$)"

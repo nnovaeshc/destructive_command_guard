@@ -523,15 +523,18 @@ mod tests {
         // `delete-workload` check.
         let pack = create_pack();
         assert!(
-            pack.check("kubectl delete deployment get-handler").is_some(),
+            pack.check("kubectl delete deployment get-handler")
+                .is_some(),
             "delete deployment named `get-handler` must still block"
         );
         assert!(
-            pack.check("kubectl delete statefulset describe-worker").is_some(),
+            pack.check("kubectl delete statefulset describe-worker")
+                .is_some(),
             "delete statefulset named `describe-worker` must still block"
         );
         assert!(
-            pack.check("kubectl delete daemonset logs-archive").is_some(),
+            pack.check("kubectl delete daemonset logs-archive")
+                .is_some(),
             "delete daemonset named `logs-archive` must still block"
         );
         assert!(

@@ -257,7 +257,12 @@ fn test_binary_replacement_failure_preserves_original() {
         use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(new_content);
-        format!("{:x}", hasher.finalize())
+        let digest = hasher.finalize();
+        digest.iter().fold(String::new(), |mut s, b| {
+            use std::fmt::Write as _;
+            let _ = write!(s, "{:02x}", b);
+            s
+        })
     };
 
     // Checksum verification fails

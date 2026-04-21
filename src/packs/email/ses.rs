@@ -30,8 +30,14 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // SES v1 read operations
-        safe_pattern!("ses-list-identities", r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ses\s+list-identities(?=\s|$)"),
-        safe_pattern!("ses-list-templates", r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ses\s+list-templates(?=\s|$)"),
+        safe_pattern!(
+            "ses-list-identities",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ses\s+list-identities(?=\s|$)"
+        ),
+        safe_pattern!(
+            "ses-list-templates",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ses\s+list-templates(?=\s|$)"
+        ),
         safe_pattern!(
             "ses-list-configuration-sets",
             r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ses\s+list-configuration-sets\b"
@@ -56,7 +62,10 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             "ses-get-identity-notification-attributes",
             r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ses\s+get-identity-notification-attributes\b"
         ),
-        safe_pattern!("ses-get-template", r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ses\s+get-template(?=\s|$)"),
+        safe_pattern!(
+            "ses-get-template",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ses\s+get-template(?=\s|$)"
+        ),
         safe_pattern!(
             "ses-describe-configuration-set",
             r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ses\s+describe-configuration-set\b"
@@ -69,7 +78,10 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             "ses-describe-receipt-rule-set",
             r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ses\s+describe-receipt-rule-set\b"
         ),
-        safe_pattern!("ses-get-send-quota", r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ses\s+get-send-quota(?=\s|$)"),
+        safe_pattern!(
+            "ses-get-send-quota",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ses\s+get-send-quota(?=\s|$)"
+        ),
         safe_pattern!(
             "ses-get-send-statistics",
             r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ses\s+get-send-statistics\b"
@@ -115,7 +127,10 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             "sesv2-get-dedicated-ip-pool",
             r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+sesv2\s+get-dedicated-ip-pool\b"
         ),
-        safe_pattern!("sesv2-get-account", r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+sesv2\s+get-account(?=\s|$)"),
+        safe_pattern!(
+            "sesv2-get-account",
+            r"\baws\b(?:\s+--?\S+(?:\s+\S+)?)*\s+sesv2\s+get-account(?=\s|$)"
+        ),
     ]
 }
 
@@ -390,7 +405,8 @@ mod tests {
             "sesv2-delete-contact-list",
         );
         assert!(
-            pack.check("aws --profile prod ses list-identities").is_none(),
+            pack.check("aws --profile prod ses list-identities")
+                .is_none(),
             "safe read with global flag should remain safe"
         );
     }

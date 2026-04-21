@@ -2166,9 +2166,9 @@ pub fn split_command_segments(cmd: &str) -> Vec<&str> {
 
         let split_width: Option<usize> = if b == b';' || b == b'\n' {
             Some(1)
-        } else if b == b'&' && bytes.get(i + 1) == Some(&b'&') {
-            Some(2)
-        } else if b == b'|' && bytes.get(i + 1) == Some(&b'|') {
+        } else if (b == b'&' && bytes.get(i + 1) == Some(&b'&'))
+            || (b == b'|' && bytes.get(i + 1) == Some(&b'|'))
+        {
             Some(2)
         } else {
             None
@@ -2460,10 +2460,7 @@ mod tests {
             split_command_segments("docker ps && docker logs x"),
             vec!["docker ps", "docker logs x"]
         );
-        assert_eq!(
-            split_command_segments("a || b"),
-            vec!["a", "b"]
-        );
+        assert_eq!(split_command_segments("a || b"), vec!["a", "b"]);
         // Pipeline `|` is NOT a split point.
         assert_eq!(
             split_command_segments("docker ps | grep nginx"),
@@ -2488,10 +2485,7 @@ mod tests {
             vec!["echo 'a; b && c'"]
         );
         // Escaped separators outside single quotes are literal.
-        assert_eq!(
-            split_command_segments(r"echo a\; b"),
-            vec![r"echo a\; b"]
-        );
+        assert_eq!(split_command_segments(r"echo a\; b"), vec![r"echo a\; b"]);
     }
 
     #[test]
@@ -2544,10 +2538,7 @@ mod tests {
              containing destructive second segment"
         );
         assert!(
-            !pack_aware_quick_reject(
-                "docker ps && docker system prune -a --volumes",
-                &keywords
-            ),
+            !pack_aware_quick_reject("docker ps && docker system prune -a --volumes", &keywords),
             "quick-reject must not skip evaluation for `&&`-joined compound \
              command with destructive second segment"
         );

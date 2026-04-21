@@ -25,12 +25,18 @@ pub fn create_pack() -> Pack {
 
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
-        safe_pattern!("vault-status", r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+status(?=\s|$)"),
+        safe_pattern!(
+            "vault-status",
+            r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+status(?=\s|$)"
+        ),
         safe_pattern!(
             "vault-version",
             r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+version(?=\s|$)"
         ),
-        safe_pattern!("vault-read", r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+read(?=\s|$)"),
+        safe_pattern!(
+            "vault-read",
+            r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+read(?=\s|$)"
+        ),
         safe_pattern!(
             "vault-kv-get",
             r"vault(?:\s+--?\S+(?:\s+\S+)?)*\s+kv\s+get(?=\s|$)"

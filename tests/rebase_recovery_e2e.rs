@@ -175,7 +175,12 @@ fn permit_allows_checkout_discard_then_expires_after_use() {
         String::from_utf8_lossy(&recover.stdout),
         String::from_utf8_lossy(&recover.stderr)
     );
-    assert!(repo.root.join(".dcg").join("rebase-recovery-permit").exists());
+    assert!(
+        repo.root
+            .join(".dcg")
+            .join("rebase-recovery-permit")
+            .exists()
+    );
 
     // With permit: allowed.
     let out = run_hook_in(&repo.root, "git checkout -- .");
@@ -228,7 +233,10 @@ fn permit_does_not_unblock_reset_hard() {
     );
     // And the permit should still be there (wasn't consumed by reset).
     assert!(
-        repo.root.join(".dcg").join("rebase-recovery-permit").exists(),
+        repo.root
+            .join(".dcg")
+            .join("rebase-recovery-permit")
+            .exists(),
         "non-matching command must not consume the permit"
     );
 }

@@ -67,9 +67,15 @@ fn create_safe_patterns() -> Vec<SafePattern> {
         // gsutil ls is safe. Require `ls` to be followed by whitespace or
         // end-of-string so `gsutil rm -r gs://ls-archive/` (bucket named
         // `ls-archive`) doesn't bypass via the `ls` substring.
-        safe_pattern!("gsutil-ls", r"gsutil\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ls(?=\s|$)"),
+        safe_pattern!(
+            "gsutil-ls",
+            r"gsutil\b(?:\s+--?\S+(?:\s+\S+)?)*\s+ls(?=\s|$)"
+        ),
         // gsutil cp is generally safe (copy). Same trailing-boundary rule.
-        safe_pattern!("gsutil-cp", r"gsutil\b(?:\s+--?\S+(?:\s+\S+)?)*\s+cp(?=\s|$)"),
+        safe_pattern!(
+            "gsutil-cp",
+            r"gsutil\b(?:\s+--?\S+(?:\s+\S+)?)*\s+cp(?=\s|$)"
+        ),
         // gcloud config / auth / info are safe.  Require the subcommand
         // to be preceded by whitespace (not `-`) so the pattern doesn't
         // false-match destructive commands with `--config`, `--auth-token`,
@@ -256,7 +262,6 @@ fn create_destructive_patterns() -> Vec<DestructivePattern> {
              - IAM policies on repository removed\n\n\
              List contents: gcloud artifacts packages list --repository=REPO"
         ),
-
         // ---- Security- and data-critical GCP services ----------------------
         destructive_pattern!(
             "secrets-delete",
@@ -500,11 +505,7 @@ mod tests {
             "gcloud dataproc clusters delete prod-hadoop --region=us-central1",
             "Dataproc",
         );
-        assert_blocks(
-            &pack,
-            "bq rm -r -f analytics_prod",
-            "BigQuery",
-        );
+        assert_blocks(&pack, "bq rm -r -f analytics_prod", "BigQuery");
         // And all of the above still block with global flags:
         assert_blocks(
             &pack,

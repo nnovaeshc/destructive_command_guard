@@ -32,7 +32,10 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             "doppler-secrets-list",
             r"doppler(?:\s+--?\S+(?:\s+\S+)?)*\s+secrets\s+list(?=\s|$)"
         ),
-        safe_pattern!("doppler-run", r"doppler(?:\s+--?\S+(?:\s+\S+)?)*\s+run(?=\s|$)"),
+        safe_pattern!(
+            "doppler-run",
+            r"doppler(?:\s+--?\S+(?:\s+\S+)?)*\s+run(?=\s|$)"
+        ),
         safe_pattern!(
             "doppler-configure",
             r"doppler(?:\s+--?\S+(?:\s+\S+)?)*\s+configure(?=\s|$)"

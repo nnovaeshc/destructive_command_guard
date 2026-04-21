@@ -30,9 +30,18 @@ fn create_safe_patterns() -> Vec<SafePattern> {
     // keyword as a substring (e.g. `list-overrides`, `show-all-config`)
     // doesn't make a destructive splunk command short-circuit as safe.
     vec![
-        safe_pattern!("splunk-list", r"splunk\b(?:\s+--?\S+(?:\s+\S+)?)*\s+list(?=\s|$)"),
-        safe_pattern!("splunk-show", r"splunk\b(?:\s+--?\S+(?:\s+\S+)?)*\s+show(?=\s|$)"),
-        safe_pattern!("splunk-search", r"splunk\b(?:\s+--?\S+(?:\s+\S+)?)*\s+search(?=\s|$)"),
+        safe_pattern!(
+            "splunk-list",
+            r"splunk\b(?:\s+--?\S+(?:\s+\S+)?)*\s+list(?=\s|$)"
+        ),
+        safe_pattern!(
+            "splunk-show",
+            r"splunk\b(?:\s+--?\S+(?:\s+\S+)?)*\s+show(?=\s|$)"
+        ),
+        safe_pattern!(
+            "splunk-search",
+            r"splunk\b(?:\s+--?\S+(?:\s+\S+)?)*\s+search(?=\s|$)"
+        ),
     ]
 }
 

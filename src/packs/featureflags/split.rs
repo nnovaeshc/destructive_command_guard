@@ -26,29 +26,71 @@ pub fn create_pack() -> Pack {
 fn create_safe_patterns() -> Vec<SafePattern> {
     vec![
         // split CLI - list/get operations
-        safe_pattern!("split-splits-list", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+splits\s+list(?=\s|$)"),
-        safe_pattern!("split-splits-get", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+splits\s+get(?=\s|$)"),
-        safe_pattern!("split-splits-create", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+splits\s+create(?=\s|$)"),
-        safe_pattern!("split-splits-update", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+splits\s+update(?=\s|$)"),
-        safe_pattern!("split-environments-list", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+environments\s+list(?=\s|$)"),
-        safe_pattern!("split-environments-get", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+environments\s+get(?=\s|$)"),
+        safe_pattern!(
+            "split-splits-list",
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+splits\s+list(?=\s|$)"
+        ),
+        safe_pattern!(
+            "split-splits-get",
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+splits\s+get(?=\s|$)"
+        ),
+        safe_pattern!(
+            "split-splits-create",
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+splits\s+create(?=\s|$)"
+        ),
+        safe_pattern!(
+            "split-splits-update",
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+splits\s+update(?=\s|$)"
+        ),
+        safe_pattern!(
+            "split-environments-list",
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+environments\s+list(?=\s|$)"
+        ),
+        safe_pattern!(
+            "split-environments-get",
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+environments\s+get(?=\s|$)"
+        ),
         safe_pattern!(
             "split-environments-create",
             r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+environments\s+create(?=\s|$)"
         ),
-        safe_pattern!("split-segments-list", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+segments\s+list(?=\s|$)"),
-        safe_pattern!("split-segments-get", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+segments\s+get(?=\s|$)"),
-        safe_pattern!("split-segments-create", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+segments\s+create(?=\s|$)"),
+        safe_pattern!(
+            "split-segments-list",
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+segments\s+list(?=\s|$)"
+        ),
+        safe_pattern!(
+            "split-segments-get",
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+segments\s+get(?=\s|$)"
+        ),
+        safe_pattern!(
+            "split-segments-create",
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+segments\s+create(?=\s|$)"
+        ),
         safe_pattern!(
             "split-traffic-types-list",
             r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+traffic-types\s+list(?=\s|$)"
         ),
-        safe_pattern!("split-traffic-types-get", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+traffic-types\s+get(?=\s|$)"),
-        safe_pattern!("split-workspaces-list", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+workspaces\s+list(?=\s|$)"),
-        safe_pattern!("split-workspaces-get", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+workspaces\s+get(?=\s|$)"),
+        safe_pattern!(
+            "split-traffic-types-get",
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+traffic-types\s+get(?=\s|$)"
+        ),
+        safe_pattern!(
+            "split-workspaces-list",
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+workspaces\s+list(?=\s|$)"
+        ),
+        safe_pattern!(
+            "split-workspaces-get",
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+workspaces\s+get(?=\s|$)"
+        ),
         // Help and version commands
-        safe_pattern!("split-help", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--help|-h|help)(?=\s|$)"),
-        safe_pattern!("split-version", r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--version|version)(?=\s|$)"),
+        safe_pattern!(
+            "split-help",
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--help|-h|help)(?=\s|$)"
+        ),
+        safe_pattern!(
+            "split-version",
+            r"split(?:\s+--?\S+(?:\s+\S+)?)*\s+(?:--version|version)(?=\s|$)"
+        ),
         // API - GET requests
         safe_pattern!(
             "split-api-get",

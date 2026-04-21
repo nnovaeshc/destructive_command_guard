@@ -554,11 +554,9 @@ fn main() {
     // Outside this narrow window the original deny path is unchanged.
     if matches!(mode, DecisionMode::Deny) {
         if let Some(cwd_ref) = cwd_path.as_deref() {
-            if let Some(reason) =
-                destructive_command_guard::rebase_recovery::should_allow_recovery(
-                    cwd_ref, pack, pattern,
-                )
-            {
+            if let Some(reason) = destructive_command_guard::rebase_recovery::should_allow_recovery(
+                cwd_ref, pack, pattern,
+            ) {
                 // Consume the permit if that's why we allowed (single-shot).
                 if matches!(
                     reason,

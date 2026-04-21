@@ -42,8 +42,14 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             r"\baz\b(?:\s+--?\S+(?:\s+\S+)?)*\s+storage\s+container\s+exists(?=\s|$)"
         ),
         // az storage blob operations (read-only)
-        safe_pattern!("az-storage-blob-list", r"\baz\b(?:\s+--?\S+(?:\s+\S+)?)*\s+storage\s+blob\s+list(?=\s|$)"),
-        safe_pattern!("az-storage-blob-show", r"\baz\b(?:\s+--?\S+(?:\s+\S+)?)*\s+storage\s+blob\s+show(?=\s|$)"),
+        safe_pattern!(
+            "az-storage-blob-list",
+            r"\baz\b(?:\s+--?\S+(?:\s+\S+)?)*\s+storage\s+blob\s+list(?=\s|$)"
+        ),
+        safe_pattern!(
+            "az-storage-blob-show",
+            r"\baz\b(?:\s+--?\S+(?:\s+\S+)?)*\s+storage\s+blob\s+show(?=\s|$)"
+        ),
         safe_pattern!(
             "az-storage-blob-exists",
             r"\baz\b(?:\s+--?\S+(?:\s+\S+)?)*\s+storage\s+blob\s+exists(?=\s|$)"
@@ -56,7 +62,10 @@ fn create_safe_patterns() -> Vec<SafePattern> {
             "az-storage-blob-download-batch",
             r"\baz\b(?:\s+--?\S+(?:\s+\S+)?)*\s+storage\s+blob\s+download-batch(?=\s|$)"
         ),
-        safe_pattern!("az-storage-blob-url", r"\baz\b(?:\s+--?\S+(?:\s+\S+)?)*\s+storage\s+blob\s+url(?=\s|$)"),
+        safe_pattern!(
+            "az-storage-blob-url",
+            r"\baz\b(?:\s+--?\S+(?:\s+\S+)?)*\s+storage\s+blob\s+url(?=\s|$)"
+        ),
         safe_pattern!(
             "az-storage-blob-metadata-show",
             r"\baz\b(?:\s+--?\S+(?:\s+\S+)?)*\s+storage\s+blob\s+metadata\s+show(?=\s|$)"
@@ -77,8 +86,14 @@ fn create_safe_patterns() -> Vec<SafePattern> {
         // azcopy operations (read-only)
         safe_pattern!("azcopy-list", r"\bazcopy\s+(?:--\S+\s+)*list(?=\s|$)"),
         safe_pattern!("azcopy-copy", r"\bazcopy\s+(?:--\S+\s+)*copy(?=\s|$)"),
-        safe_pattern!("azcopy-jobs-list", r"\bazcopy\s+(?:--\S+\s+)*jobs\s+list(?=\s|$)"),
-        safe_pattern!("azcopy-jobs-show", r"\bazcopy\s+(?:--\S+\s+)*jobs\s+show(?=\s|$)"),
+        safe_pattern!(
+            "azcopy-jobs-list",
+            r"\bazcopy\s+(?:--\S+\s+)*jobs\s+list(?=\s|$)"
+        ),
+        safe_pattern!(
+            "azcopy-jobs-show",
+            r"\bazcopy\s+(?:--\S+\s+)*jobs\s+show(?=\s|$)"
+        ),
         safe_pattern!("azcopy-login", r"\bazcopy\s+(?:--\S+\s+)*login(?=\s|$)"),
         safe_pattern!("azcopy-env", r"\bazcopy\s+(?:--\S+\s+)*env(?=\s|$)"),
     ]

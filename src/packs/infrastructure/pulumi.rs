@@ -33,21 +33,48 @@ fn create_safe_patterns() -> Vec<SafePattern> {
     // via `preview` in `preview-stack` and bypass the destroy rule.
     vec![
         // preview is safe (read-only)
-        safe_pattern!("pulumi-preview", r"pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+preview(?=\s|$)"),
+        safe_pattern!(
+            "pulumi-preview",
+            r"pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+preview(?=\s|$)"
+        ),
         // stack ls/select/init are safe
-        safe_pattern!("pulumi-stack-ls", r"pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+stack\s+ls(?=\s|$)"),
-        safe_pattern!("pulumi-stack-select", r"pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+stack\s+select(?=\s|$)"),
-        safe_pattern!("pulumi-stack-init", r"pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+stack\s+init(?=\s|$)"),
+        safe_pattern!(
+            "pulumi-stack-ls",
+            r"pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+stack\s+ls(?=\s|$)"
+        ),
+        safe_pattern!(
+            "pulumi-stack-select",
+            r"pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+stack\s+select(?=\s|$)"
+        ),
+        safe_pattern!(
+            "pulumi-stack-init",
+            r"pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+stack\s+init(?=\s|$)"
+        ),
         // config is safe
-        safe_pattern!("pulumi-config", r"pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+config(?=\s|$)"),
+        safe_pattern!(
+            "pulumi-config",
+            r"pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+config(?=\s|$)"
+        ),
         // whoami is safe
-        safe_pattern!("pulumi-whoami", r"pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+whoami(?=\s|$)"),
+        safe_pattern!(
+            "pulumi-whoami",
+            r"pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+whoami(?=\s|$)"
+        ),
         // version is safe
-        safe_pattern!("pulumi-version", r"pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+version(?=\s|$)"),
+        safe_pattern!(
+            "pulumi-version",
+            r"pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+version(?=\s|$)"
+        ),
         // about is safe
-        safe_pattern!("pulumi-about", r"pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+about(?=\s|$)"),
+        safe_pattern!(
+            "pulumi-about",
+            r"pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+about(?=\s|$)"
+        ),
         // logs is safe
-        safe_pattern!("pulumi-logs", r"pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+logs(?=\s|$)"),
+        safe_pattern!(
+            "pulumi-logs",
+            r"pulumi\b(?:\s+--?\S+(?:\s+\S+)?)*\s+logs(?=\s|$)"
+        ),
     ]
 }
 
@@ -146,16 +173,8 @@ mod tests {
         // `pulumi` and the subcommand broke every pattern until the
         // `pulumi\b.*?\b<sub>` sweep.
         let pack = create_pack();
-        assert_blocks(
-            &pack,
-            "pulumi --cwd ./prod destroy",
-            "destroy",
-        );
-        assert_blocks(
-            &pack,
-            "pulumi --non-interactive --cwd ./prod up -y",
-            "-y",
-        );
+        assert_blocks(&pack, "pulumi --cwd ./prod destroy", "destroy");
+        assert_blocks(&pack, "pulumi --non-interactive --cwd ./prod up -y", "-y");
         assert_blocks(
             &pack,
             "pulumi --cwd ./prod state delete urn:pulumi:prod::db::aws:rds/instance:Instance::main",

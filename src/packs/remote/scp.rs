@@ -246,7 +246,7 @@ mod tests {
         // any destructive pattern ran. Verify the safe rules refuse `../`.
         let pack = create_pack();
         assert!(
-            pack.matches_safe("scp file user@host:/tmp/stash/") ,
+            pack.matches_safe("scp file user@host:/tmp/stash/"),
             "normal /tmp copies remain safe"
         );
         assert!(

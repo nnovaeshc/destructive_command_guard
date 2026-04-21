@@ -82,7 +82,9 @@ impl RecoveryReason {
     }
 }
 
-/// Return `Some(RecoveryReason)` if the given `pack_id`/`pattern_name` is
+/// Check whether a recovery unblock should fire for this pack/pattern in this cwd.
+///
+/// Returns `Some(RecoveryReason)` if the given `pack_id`/`pattern_name` is
 /// one of the recovery-eligible rules AND a recovery signal is active in
 /// `cwd`. Otherwise returns `None` and the caller should keep blocking.
 #[must_use]
@@ -95,9 +97,7 @@ pub fn should_allow_recovery(
     if pack_id != Some("core.git") {
         return None;
     }
-    let Some(name) = pattern_name else {
-        return None;
-    };
+    let name = pattern_name?;
     if !RECOVERY_PATTERNS.contains(&name) {
         return None;
     }

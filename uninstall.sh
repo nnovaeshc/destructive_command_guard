@@ -495,10 +495,13 @@ main() {
         # If /dev/tty isn't available (e.g. CI), refuse with a clear message
         # rather than silently cancelling.
         printf "${YELLOW}Proceed with uninstall? [y/N]${NC} "
+        response=""
         if [ -r /dev/tty ]; then
-            read -r response < /dev/tty
+            # `|| true` so Ctrl-D/EOF doesn't kill the script under `set -e`;
+            # an empty response falls through the case below and cancels cleanly.
+            read -r response < /dev/tty || true
         elif [ -t 0 ]; then
-            read -r response
+            read -r response || true
         else
             echo
             log "${YELLOW}Cannot read confirmation (no TTY available).${NC}"
